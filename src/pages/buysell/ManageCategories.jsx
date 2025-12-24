@@ -5,7 +5,7 @@ import { Package, TrendingUp } from "lucide-react";
 /* ==============================
    API CONFIG
 ================================ */
-const API_BASE = "http://3.147.226.49:5000";
+const API_BASE = "https://accomodation.api.test.nextkinlife.live";
 
 const api = axios.create({ baseURL: API_BASE });
 

@@ -7,7 +7,7 @@ import {
 import PropertyList from "./PropertyList";
 import PropertyDetail from "./PropertyDetail";
 
-const API_URL = "http://3.147.226.49:5000/admin/approved/approved-host-details";
+const API_URL = "https://accomodation.api.test.nextkinlife.live/admin/approved/approved-host-details";
 
 // Constants for view modes
 const VIEW_MODES = {

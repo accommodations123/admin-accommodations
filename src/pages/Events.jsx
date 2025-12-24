@@ -48,7 +48,7 @@ const { TextArea } = Input;
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
-const API_BASE = "http://3.147.226.49:5000";
+const API_BASE = "https://accomodation.api.test.nextkinlife.live";
 
 const Events = () => {
   const [events, setEvents] = useState([]);

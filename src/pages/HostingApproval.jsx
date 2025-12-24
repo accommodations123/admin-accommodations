@@ -22,9 +22,9 @@ import AccomadationStats from "../pages/AccommodationPages/AccomadationStats";
  * Adjust token key or endpoints if your backend differs.
  */
 const API = {
-  PENDING: "http://3.147.226.49:5000/adminproperty/pending",
-  APPROVE: (id) => `http://3.147.226.49:5000/adminproperty/approve/${id}`,
-  REJECT: (id) => `http://3.147.226.49:5000/adminproperty/reject/${id}`,
+  PENDING: "https://accomodation.api.test.nextkinlife.live/adminproperty/pending",
+  APPROVE: (id) => `https://accomodation.api.test.nextkinlife.live/adminproperty/approve/${id}`,
+  REJECT: (id) => `https://accomodation.api.test.nextkinlife.live/adminproperty/reject/${id}`,
 };
 
 const HostingApproval = () => {

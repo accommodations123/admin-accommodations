@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 
 const AccomadationStats = () => {
-    const BASE_URL = "http://3.147.226.49:5000/adminproperty";
+    const BASE_URL = "https://accomodation.api.test.nextkinlife.live/adminproperty";
 
     const [statusStats, setStatusStats] = useState(null);
     const [countryStats, setCountryStats] = useState([]);

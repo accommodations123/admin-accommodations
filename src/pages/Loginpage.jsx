@@ -16,7 +16,7 @@ export default function AdminLogin() {
         setLoading(true);
 
         try {
-            const response = await fetch("http://3.147.226.49:5000/admin/login", {
+            const response = await fetch("https://accomodation.api.test.nextkinlife.live/admin/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
