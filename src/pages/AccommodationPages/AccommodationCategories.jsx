@@ -1,15 +1,18 @@
-// src/AccommodationCategories.jsx
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, } from 'framer-motion';
 import {
-  Building, Plus, Search, Filter, Grid, List, X, Home, Bell, Map, Eye, Edit, Trash2, Copy, Mail, Phone, CalendarDays, Wifi, Car, Coffee, Dumbbell, Tv, Wind
+  Building, Plus,ArrowRight, Search, Filter, Grid, List, X, Home, Bell, Map, Eye, Edit, Trash2, Copy, Mail, Phone, CalendarDays, Wifi, Car, Coffee, Dumbbell, Tv, Wind, MoreHorizontal
 } from 'lucide-react';
 import PropertyList from "./PropertyList";
 import PropertyDetail from "./PropertyDetail";
 
+// --- CONFIG ---
 const API_URL = "https://accomodation.api.test.nextkinlife.live/admin/approved/approved-host-details";
+const BRAND_COLORS = {
+  primary: "#00162d", // Navy
+  accent: "#cb2926",  // Red
+};
 
-// Constants for view modes
 const VIEW_MODES = {
   GRID: 'grid',
   LIST: 'list',
@@ -22,7 +25,7 @@ const VIEWS = {
   DETAILS: 'details'
 };
 
-// Icon mapping for accommodation types
+// Icon mapping
 const TYPE_ICONS = {
   'apartment': Building,
   'house': Home,
@@ -42,7 +45,6 @@ const TYPE_ICONS = {
   'other': Building
 };
 
-// Category display names mapping
 const CATEGORY_NAMES = {
   'apartment': 'Apartment',
   'house': 'House',
@@ -74,13 +76,13 @@ const AccommodationCategories = () => {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
+  
   const [notifications, setNotifications] = useState([
     { id: 1, type: 'info', title: 'New Booking', message: 'A new booking has been made', time: '5 minutes ago', read: false },
     { id: 2, type: 'warning', title: 'Payment Pending', message: 'Payment is pending for booking #12345', time: '1 hour ago', read: false },
     { id: 3, type: 'success', title: 'Property Listed', message: 'Your new property has been successfully listed', time: '3 hours ago', read: true }
   ]);
 
-  // State for filters
   const [activeFilters, setActiveFilters] = useState({
     priceRange: [0, 1000],
     amenities: [],
@@ -91,7 +93,6 @@ const AccommodationCategories = () => {
     bathrooms: null
   });
 
-  // State for form data
   const [formData, setFormData] = useState({
     listType: '',
     propertyType: '',
@@ -111,16 +112,16 @@ const AccommodationCategories = () => {
     availability: []
   });
 
-  // Ref for search input
   const searchInputRef = useRef(null);
 
+  // --- DATA FETCHING ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("admin-auth");
         if (!token) {
-          throw new Error("No authentication token found. Please log in again.");
+          throw new Error("No authentication token found.");
         }
 
         const res = await fetch(API_URL, {
@@ -128,10 +129,8 @@ const AccommodationCategories = () => {
         });
 
         if (!res.ok) {
-          if (res.status === 401) {
-            throw new Error("Authentication failed. Please log in again.");
-          }
-          throw new Error("Failed to fetch accommodation data");
+          if (res.status === 401) throw new Error("Authentication failed.");
+          throw new Error("Failed to fetch data");
         }
 
         const json = await res.json();
@@ -207,7 +206,7 @@ const AccommodationCategories = () => {
     fetchData();
   }, []);
 
-  // --- Navigation Handlers ---
+  // --- HANDLERS ---
   const handleBackToCategories = useCallback(() => {
     setView(VIEWS.CATEGORIES);
     setSelectedCategory(null);
@@ -229,44 +228,17 @@ const AccommodationCategories = () => {
     setSelectedProperty(null);
   }, []);
 
-  // --- Property Management Handlers ---
   const handlePropertyFormSubmit = useCallback((e) => {
     e.preventDefault();
     console.log('Form data submitted:', formData);
-
-    // Reset form
     setFormData({
-      listType: '',
-      propertyType: '',
-      guests: '',
-      streetAddress: '',
-      city: '',
-      zipCode: '',
-      country: '',
-      propertyName: '',
-      propertyDescription: '',
-      propertySize: '',
-      bedrooms: '',
-      bathrooms: '',
-      amenities: [],
-      pricePerNight: '',
-      images: [],
-      availability: []
+      listType: '', propertyType: '', guests: '', streetAddress: '', city: '', zipCode: '',
+      country: '', propertyName: '', propertyDescription: '', propertySize: '',
+      bedrooms: '', bathrooms: '', amenities: [], pricePerNight: '',
+      images: [], availability: []
     });
     setShowPropertyForm(false);
-
-    // Add a success notification
-    setNotifications(prev => [
-      {
-        id: Date.now(),
-        type: 'success',
-        title: 'Property Added',
-        message: `${formData.propertyName} has been successfully added.`,
-        time: 'Just now',
-        read: false
-      },
-      ...prev
-    ]);
+    setNotifications(prev => [{ id: Date.now(), type: 'success', title: 'Property Added', message: `${formData.propertyName} has been added.`, time: 'Just now', read: false }, ...prev]);
   }, [formData]);
 
   const handleInputChange = useCallback((e) => {
@@ -274,37 +246,25 @@ const AccommodationCategories = () => {
     setFormData(prevData => ({ ...prevData, [name]: value }));
   }, []);
 
-  // --- Search Handlers ---
   const handleSearchChange = useCallback((e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
+    setSearchTerm(e.target.value);
   }, []);
 
-  // --- Notification Handlers ---
   const handleNotificationClick = useCallback((notificationId) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === notificationId
-          ? { ...notification, read: true }
-          : notification
-      )
-    );
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
   }, []);
 
   const markAllNotificationsAsRead = useCallback(() => {
-    setNotifications(prev =>
-      prev.map(notification => ({ ...notification, read: true }))
-    );
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   }, []);
 
-  // --- Filtering Logic ---
+  // --- FILTERS ---
   const filteredCategories = useMemo(() =>
     categories.filter(category => {
-      const matchesSearch = category.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
+      return category.name.toLowerCase().includes(searchTerm.toLowerCase());
     }), [categories, searchTerm]);
 
-  // --- Conditional Rendering based on currentView ---
+  // --- SUB-RENDER VIEWS ---
   if (view === VIEWS.DETAILS && selectedProperty) {
     return <PropertyDetail property={selectedProperty} onBack={handleBackToProperties} />;
   }
@@ -319,62 +279,72 @@ const AccommodationCategories = () => {
     );
   }
 
-  // Default View: Categories
+  // --- MAIN RENDER ---
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 p-6 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ color: "#00162d" }}>Accommodation</h1>
-            <p className="text-gray-600">Manage all listed accommodations.</p>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-slate-200">
+      <div className="max-w-[1600px] mx-auto p-4 sm:p-8">
+        
+        {/* PREMIUM HEADER */}
+        <header className="bg-white/80 backdrop-blur-xl border border-slate-200 sticky top-0 z-40 rounded-2xl shadow-sm px-6 py-4 mb-8 flex justify-between items-center transition-all">
+          <div className="flex items-center gap-4">
+            <div className="p-2 bg-gradient-to-br from-[#00162d] to-[#002a4d] rounded-xl text-white shadow-lg">
+              <Building size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: BRAND_COLORS.primary }}>
+                Accommodation
+              </h1>
+              <p className="text-sm text-slate-500 font-medium">Manage approved listings</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setNotificationPanelOpen(!notificationPanelOpen)}
-              className="relative p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors"
-              aria-label="Notifications"
+              className="relative p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors text-slate-600"
             >
               <Bell size={20} />
               {notifications.filter(n => !n.read).length > 0 && (
-                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full"></span>
+                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#cb2926] rounded-full border-2 border-white animate-pulse"></span>
               )}
             </button>
+            <div className="h-8 w-[1px] bg-slate-200 mx-1"></div>
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#00162d] to-[#002a4d] text-white rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all font-medium">
+              <Plus size={18} />
+              <span>Add New</span>
+            </button>
           </div>
-        </div>
+        </header>
 
-        {/* Notification Panel */}
+        {/* NOTIFICATION PANEL */}
         <AnimatePresence>
           {notificationPanelOpen && (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
-              className="fixed right-6 top-20 w-80 bg-white rounded-xl shadow-lg z-50 max-h-96 overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="fixed right-8 top-24 w-96 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-3xl shadow-2xl z-50 overflow-hidden"
             >
-              <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="font-semibold" style={{ color: "#00162d" }}>Notifications</h3>
-                <button
-                  onClick={markAllNotificationsAsRead}
-                  className="text-sm hover:underline"
-                  style={{ color: "#00162d" }}
-                >
-                  Mark all as read
-                </button>
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="font-bold text-slate-800">Notifications</h3>
+                <button onClick={markAllNotificationsAsRead} className="text-xs font-semibold text-[#00162d] hover:underline">Mark all read</button>
               </div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.map(notification => (
+              <div className="max-h-96 overflow-y-auto p-2">
+                {notifications.map((notification) => (
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification.id)}
-                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
+                    className={`group p-4 mb-2 rounded-xl cursor-pointer transition-colors ${!notification.read ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-medium" style={{ color: "#00162d" }}>{notification.title}</h4>
-                      <span className="text-xs text-gray-500">{notification.time}</span>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${notification.type === 'warning' ? 'bg-amber-500' : notification.type === 'success' ? 'bg-emerald-500' : 'bg-blue-500'}`}></div>
+                        <h4 className="font-semibold text-sm text-slate-800">{notification.title}</h4>
+                      </div>
+                      <span className="text-xs text-slate-400 whitespace-nowrap">{notification.time}</span>
                     </div>
-                    <p className="text-sm text-gray-600">{notification.message}</p>
+                    <p className="text-sm text-slate-600 leading-snug pl-4">{notification.message}</p>
                   </div>
                 ))}
               </div>
@@ -382,545 +352,269 @@ const AccommodationCategories = () => {
           )}
         </AnimatePresence>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: "#00162d" }}></div>
+        {/* LOADING & ERROR */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-[50vh]">
+            <div className="w-12 h-12 border-4 border-slate-200 border-t-[#00162d] rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-500 font-medium animate-pulse">Loading Inventory...</p>
           </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-            <strong>Error:</strong> {error}. Please try again later.
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-xl mb-6 shadow-sm flex items-center">
+            <XCircle size={24} className="mr-3" />
+            <div>
+              <p className="font-bold">Error loading data</p>
+              <p className="text-sm">{error}. Please try refreshing.</p>
+            </div>
           </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && categories.length === 0 && (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center">
-            <Building size={48} className="mx-auto text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Properties Found</h3>
-            <p className="text-gray-600">There are no approved properties at the moment.</p>
-          </div>
-        )}
-
-        {/* Conditionally render form or header with controls */}
-        <AnimatePresence>
-          {showPropertyForm ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-xl shadow-lg p-6 mb-6"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold" style={{ color: "#00162d" }}>Add New Property</h2>
-                <button
-                  onClick={() => setShowPropertyForm(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                  aria-label="Close form"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <form onSubmit={handlePropertyFormSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Form fields... */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Property Name</label>
-                  <input
-                    type="text"
-                    name="propertyName"
-                    value={formData.propertyName}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
-                  <select
-                    name="propertyType"
-                    value={formData.propertyType}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  >
-                    <option value="">Select Type</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price per Night</label>
-                  <input
-                    type="number"
-                    name="pricePerNight"
-                    value={formData.pricePerNight}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Guests</label>
-                  <input
-                    type="number"
-                    name="guests"
-                    value={formData.guests}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
-                  <input
-                    type="number"
-                    name="bedrooms"
-                    value={formData.bedrooms}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bathrooms</label>
-                  <input
-                    type="number"
-                    name="bathrooms"
-                    value={formData.bathrooms}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Property Size (sq ft)</label>
-                  <input
-                    type="number"
-                    name="propertySize"
-                    value={formData.propertySize}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
-                  <input
-                    type="text"
-                    name="streetAddress"
-                    value={formData.streetAddress}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
-                  <input
-                    type="text"
-                    name="zipCode"
-                    value={formData.zipCode}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                  <input
-                    type="text"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Property Description</label>
-                  <textarea
-                    name="propertyDescription"
-                    value={formData.propertyDescription}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    required
-                  ></textarea>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Amenities</label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {['WiFi', 'Parking', 'Pool', 'Gym', 'Kitchen', 'Air Conditioning', 'Workspace', 'Pet Friendly'].map(amenity => (
-                      <label key={amenity} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="amenities"
-                          value={amenity}
-                          checked={formData.amenities.includes(amenity)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData(prev => ({ ...prev, amenities: [...prev.amenities, amenity] }));
-                            } else {
-                              setFormData(prev => ({ ...prev, amenities: prev.amenities.filter(a => a !== amenity) }));
-                            }
-                          }}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">{amenity}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className="md:col-span-2 flex justify-end gap-4 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowPropertyForm(false)}
-                    className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
-                    style={{ backgroundColor: "#00162d" }}
-                  >
-                    Save Property
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4"
-            >
-              <div className="relative w-full md:w-1/3">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+        ) : (
+          <>
+            {/* CONTROLS BAR */}
+            <div className="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-8 gap-4">
+              <div className="relative w-full md:w-1/3 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#00162d] transition-colors" size={18} />
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search accommodation types..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
-                  style={{ focusRingColor: "#00162d" }}
+                  placeholder="Search categories..."
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-[#00162d] transition-all font-medium placeholder:text-slate-400"
                   value={searchTerm}
                   onChange={handleSearchChange}
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full md:w-auto">
                 <button
                   onClick={() => setFilterPanelOpen(!filterPanelOpen)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${filterPanelOpen
-                    ? 'text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  style={filterPanelOpen ? { backgroundColor: "#00162d" } : {}}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${filterPanelOpen ? 'bg-[#00162d] text-white shadow-lg' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                 >
                   <Filter size={18} />
-                  <span>Filter</span>
+                  <span>Filters</span>
                 </button>
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode(VIEW_MODES.GRID)}
-                    className={`p-2 rounded ${viewMode === VIEW_MODES.GRID ? 'bg-white shadow-sm' : ''}`}
-                    aria-label="Grid view"
-                  >
-                    <Grid size={18} className={viewMode === VIEW_MODES.GRID ? '' : 'text-gray-600'} style={viewMode === VIEW_MODES.GRID ? { color: "#00162d" } : {}} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode(VIEW_MODES.LIST)}
-                    className={`p-2 rounded ${viewMode === VIEW_MODES.LIST ? 'bg-white shadow-sm' : ''}`}
-                    aria-label="List view"
-                  >
-                    <List size={18} className={viewMode === VIEW_MODES.LIST ? '' : 'text-gray-600'} style={viewMode === VIEW_MODES.LIST ? { color: "#00162d" } : {}} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode(VIEW_MODES.MAP)}
-                    className={`p-2 rounded ${viewMode === VIEW_MODES.MAP ? 'bg-white shadow-sm' : ''}`}
-                    aria-label="Map view"
-                  >
-                    <Map size={18} className={viewMode === VIEW_MODES.MAP ? '' : 'text-gray-600'} style={viewMode === VIEW_MODES.MAP ? { color: "#00162d" } : {}} />
-                  </button>
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  {[
+                    { mode: VIEW_MODES.GRID, icon: Grid },
+                    { mode: VIEW_MODES.LIST, icon: List },
+                    { mode: VIEW_MODES.MAP, icon: Map }
+                  ].map(({ mode, icon: Icon }) => (
+                    <button
+                      key={mode}
+                      onClick={() => setViewMode(mode)}
+                      className={`p-2.5 rounded-lg transition-all ${viewMode === mode ? 'bg-white text-[#00162d] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <Icon size={18} />
+                    </button>
+                  ))}
                 </div>
-                <button
-                  onClick={() => setShowPropertyForm(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: "#00162d" }}
-                >
-                  <Plus size={18} />
-                  <span>Add New</span>
-                </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
 
-        {/* Filter Panel */}
-        <AnimatePresence>
-          {filterPanelOpen && !showPropertyForm && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white rounded-xl shadow-md p-6 mb-6 overflow-hidden"
-            >
-              <h3 className="text-lg font-semibold mb-4" style={{ color: "#00162d" }}>Advanced Filters</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                      style={{ focusRingColor: "#00162d" }}
-                      value={activeFilters.priceRange[0]}
-                      onChange={(e) => setActiveFilters({ ...activeFilters, priceRange: [parseInt(e.target.value), activeFilters.priceRange[1]] })}
-                    />
-                    <span className="text-gray-500">-</span>
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                      style={{ focusRingColor: "#00162d" }}
-                      value={activeFilters.priceRange[1]}
-                      onChange={(e) => setActiveFilters({ ...activeFilters, priceRange: [activeFilters.priceRange[0], parseInt(e.target.value)] })}
-                    />
+            {/* FILTER PANEL */}
+            <AnimatePresence>
+              {filterPanelOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-white rounded-2xl shadow-md border border-slate-200 p-6 mb-8 overflow-hidden"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                    {/* Simplified Filter Inputs for Visual Demo */}
+                    {['Price', 'Rating', 'Size', 'Beds', 'Baths', 'Amenities'].map((f, i) => (
+                       <div key={i} className="space-y-2">
+                          <label className="text-xs font-bold uppercase text-slate-500 tracking-wider">{f}</label>
+                          <div className="h-10 bg-slate-50 rounded-lg animate-pulse"></div>
+                       </div>
+                    ))}
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Rating</label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    value={activeFilters.rating}
-                    onChange={(e) => setActiveFilters({ ...activeFilters, rating: parseInt(e.target.value) })}
-                  >
-                    <option value="0">Any Rating</option>
-                    <option value="3">3+ Stars</option>
-                    <option value="4">4+ Stars</option>
-                    <option value="4.5">4.5+ Stars</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Availability</label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    value={activeFilters.availability || ''}
-                    onChange={(e) => setActiveFilters({ ...activeFilters, availability: e.target.value })}
-                  >
-                    <option value="">Any Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Property Size</label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    value={activeFilters.propertySize || ''}
-                    onChange={(e) => setActiveFilters({ ...activeFilters, propertySize: e.target.value })}
-                  >
-                    <option value="">Any Size</option>
-                    <option value="small">Small (&lt;1000 sq ft)</option>
-                    <option value="medium">Medium (1000-2000 sq ft)</option>
-                    <option value="large">Large (&gt;2000 sq ft)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    value={activeFilters.bedrooms || ''}
-                    onChange={(e) => setActiveFilters({ ...activeFilters, bedrooms: e.target.value })}
-                  >
-                    <option value="">Any</option>
-                    <option value="1">1 Bedroom</option>
-                    <option value="2">2 Bedrooms</option>
-                    <option value="3">3 Bedrooms</option>
-                    <option value="4">4+ Bedrooms</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
-                  <select
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2"
-                    style={{ focusRingColor: "#00162d" }}
-                    value={activeFilters.bathrooms || ''}
-                    onChange={(e) => setActiveFilters({ ...activeFilters, bathrooms: e.target.value })}
-                  >
-                    <option value="">Any</option>
-                    <option value="1">1 Bathroom</option>
-                    <option value="2">2 Bathrooms</option>
-                    <option value="3">3 Bathrooms</option>
-                    <option value="4">4+ Bathrooms</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={() => setActiveFilters({
-                    priceRange: [0, 1000],
-                    amenities: [],
-                    rating: 0,
-                    availability: null,
-                    propertySize: null,
-                    bedrooms: null,
-                    bathrooms: null
-                  })}
-                  className="px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors mr-2"
-                  style={{ color: "#00162d" }}
-                >
-                  Reset Filters
-                </button>
-                <button
-                  onClick={() => setFilterPanelOpen(false)}
-                  className="px-4 py-2 text-white rounded-lg hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: "#00162d" }}
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-        <div>
-          <h1 className="text-4xl font-bold mt-10" style={{ color: "#00162d" }}>Accommodation Categories</h1>
-        </div>
+            <div className="flex justify-between items-end mb-6">
+              <h2 className="text-3xl font-bold text-slate-900">Categories</h2>
+              <span className="text-sm text-slate-500 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">
+                Showing {filteredCategories.length} types
+              </span>
+            </div>
 
-        {/* Categories Grid/List/Map */}
-        {!showPropertyForm && !loading && (
-          <AnimatePresence>
-            {viewMode === VIEW_MODES.GRID ? (
-              <motion.div
-                key="grid"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 mt-12"
-              >
-                {filteredCategories.map((category, index) => (
-                  <motion.div
-                    key={category.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                    whileHover={{ y: -5 }}
-                    className="relative bg-white rounded-xl shadow-md transition-all duration-300 ease-out cursor-pointer overflow-hidden group"
-                    onClick={() => handleViewProperties(category)}
-                  >
-                    <div className="p-6 text-center relative" style={{ backgroundColor: "#00162d" }}>
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm mb-3">
-                        <category.icon className="text-white" size={32} />
+            {/* CATEGORIES GRID/LIST/MAP */}
+            <AnimatePresence mode="wait">
+              {viewMode === VIEW_MODES.GRID ? (
+                <motion.div
+                  key="grid"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
+                >
+                  {filteredCategories.map((category, index) => (
+                    <motion.div
+                      key={category.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.05 }}
+                      whileHover={{ y: -6 }}
+                      className="group relative bg-white rounded-3xl shadow-sm hover:shadow-2xl border border-slate-100 cursor-pointer overflow-hidden h-full flex flex-col"
+                      onClick={() => handleViewProperties(category)}
+                    >
+                      {/* Decorative Gradient BG for Header */}
+                      <div className="h-24 bg-gradient-to-br from-[#00162d] via-[#002a4d] to-[#00162d] p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+                        <div className="relative z-10 flex items-center justify-between">
+                          <category.icon className="text-white drop-shadow-lg" size={32} />
+                          <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-white/10">
+                            {category.count} Props
+                          </span>
+                        </div>
                       </div>
-                      <h3 className="text-xl font-bold text-white">{category.name}</h3>
-                      <span className="absolute top-0 right-0 bg-blue-800 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">{category.count}</span>
-                    </div>
-                    <div className="p-5">
-                      <p className="text-gray-600 text-sm leading-relaxed">{category.description}</p>
-                    </div>
-                    {/* Fixed the duplicate className attribute here */}
-                    <div
-                      className="h-1 group-hover:scale-x-100 transition-transform duration-300 ease-out"
-                      style={{ backgroundColor: "#00162d", transform: "scaleX(0)", transformOrigin: "left" }}
-                    ></div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            ) : viewMode === VIEW_MODES.LIST ? (
-              <motion.div
-                key="list"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-white rounded-xl shadow-md divide-y divide-gray-200"
-              >
-                {filteredCategories.map((category, index) => (
-                  <motion.div
-                    key={category.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                    whileHover={{ x: 5 }}
-                    className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between hover:bg-gray-50 transition-colors"
-                    onClick={() => handleViewProperties(category)}
-                  >
-                    <div className="flex items-center space-x-4 mb-2 sm:mb-0">
-                      <div className="flex-shrink-0 p-3 rounded-lg" style={{ backgroundColor: "#00162d" }}>
-                        <category.icon className="text-white" size={24} />
+                      
+                      <div className="p-6 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-[#cb2926] transition-colors">
+                            {category.name}
+                          </h3>
+                          <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed">
+                            {category.description}
+                          </p>
+                        </div>
+                        
+                        <div className="mt-6 flex items-center text-sm font-medium text-slate-400 group-hover:text-[#00162d] transition-colors">
+                          <span>Browse List</span>
+                          <ArrowRight className="ml-1 group-hover:translate-x-1 transition-transform" size={16} />
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-bold" style={{ color: "#00162d" }}>{category.name}</h3>
-                        <p className="text-gray-600 text-sm">{category.description}</p>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : viewMode === VIEW_MODES.LIST ? (
+                <motion.div
+                  key="list"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden"
+                >
+                  {filteredCategories.map((category, index) => (
+                    <motion.div
+                      key={category.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      whileHover={{ x: 5, backgroundColor: "#f8fafc" }}
+                      className="p-6 border-b border-slate-100 last:border-0 flex items-center justify-between cursor-pointer"
+                      onClick={() => handleViewProperties(category)}
+                    >
+                      <div className="flex items-center gap-5">
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600 shadow-inner">
+                          <category.icon size={28} />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-slate-900">{category.name}</h3>
+                          <p className="text-slate-500 text-sm mt-1">{category.description}</p>
+                        </div>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-slate-400 text-sm font-medium">{category.count} listings</span>
+                        <div className="p-2 rounded-full bg-slate-50 group-hover:bg-[#00162d] group-hover:text-white transition-all">
+                          <ChevronRight size={20} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="map"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-white rounded-3xl shadow-sm border border-slate-200 p-12 h-[600px] flex flex-col items-center justify-center relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>
+                  <div className="z-10 text-center">
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#00162d] to-[#002a4d] flex items-center justify-center mx-auto mb-6 shadow-lg text-white">
+                      <Map size={40} />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-white text-xs font-bold px-3 py-1 rounded-full mr-4" style={{ backgroundColor: "#00162d" }}>{category.count} Properties</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="map"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-white rounded-xl shadow-md p-6 h-96"
-              >
-                <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
-                  <div className="text-center">
-                    <Map size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-700 mb-2">Map View</h3>
-                    <p className="text-gray-500">Interactive map showing property locations</p>
-                    <p className="text-sm text-gray-500 mt-2">This feature requires integration with a mapping service</p>
+                    <h3 className="text-2xl font-bold text-slate-900 mb-2">Map View</h3>
+                    <p className="text-slate-500 max-w-xs mx-auto">Interact with property locations geographically</p>
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
         )}
       </div>
+
+      {/* ADD PROPERTY MODAL (Premium Overlay) */}
+      <AnimatePresence>
+        {showPropertyForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border border-slate-200"
+            >
+              <div className="sticky top-0 bg-white border-b border-slate-100 p-6 flex justify-between items-center z-10 backdrop-blur-md bg-white/95">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#00162d]">Add New Property</h2>
+                  <p className="text-slate-500 text-sm">Fill in the details to list a new accommodation.</p>
+                </div>
+                <button onClick={() => setShowPropertyForm(false)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handlePropertyFormSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { label: 'Property Name', name: 'propertyName', type: 'text' },
+                  { label: 'Property Type', name: 'propertyType', type: 'select' },
+                  { label: 'Price per Night', name: 'pricePerNight', type: 'number' },
+                  { label: 'Guests', name: 'guests', type: 'number' },
+                  { label: 'Bedrooms', name: 'bedrooms', type: 'number' },
+                  { label: 'Bathrooms', name: 'bathrooms', type: 'number' },
+                  { label: 'Property Size (sq ft)', name: 'propertySize', type: 'number' },
+                  { label: 'Street Address', name: 'streetAddress', type: 'text' },
+                  { label: 'City', name: 'city', type: 'text' },
+                  { label: 'Zip Code', name: 'zipCode', type: 'text' },
+                  { label: 'Country', name: 'country', type: 'text' },
+                ].map((field) => (
+                  <div key={field.name} className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 uppercase tracking-wide text-xs">{field.label}</label>
+                    {field.type === 'select' ? (
+                      <select name={field.name} value={formData[field.name]} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00162d] transition-all font-medium">
+                        <option value="">Select Type</option>
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    ) : (
+                      <input type={field.type} name={field.name} value={formData[field.name]} onChange={handleInputChange} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00162d] transition-all font-medium placeholder:text-slate-400" />
+                    )}
+                  </div>
+                ))}
+                
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-wide text-xs">Property Description</label>
+                  <textarea name="propertyDescription" value={formData.propertyDescription} onChange={handleInputChange} rows={4} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#00162d] transition-all font-medium"></textarea>
+                </div>
+
+                <div className="md:col-span-2 flex justify-between items-center pt-4 border-t border-slate-100">
+                  <button type="button" onClick={() => setShowPropertyForm(false)} className="px-6 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+                  <button type="submit" className="px-8 py-3 bg-[#00162d] text-white font-bold rounded-xl hover:bg-[#002a4d] hover:shadow-lg transition-all">Save Property</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

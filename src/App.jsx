@@ -16,6 +16,7 @@ import PropertyList from "./pages/AccommodationPages/PropertyList";
 
 // Import the Buysellpages component
 import Buysellpages from "./pages/buysell/Buysellpages";
+import Community from "./Community";
 
 function App() {
   const isAuth = localStorage.getItem("admin-auth");
@@ -58,6 +59,7 @@ function App() {
 
           {/* NEW ROUTE FOR BUYSELLPAGES COMPONENT */}
           <Route path="buy-and-sell" element={<Buysellpages />} />
+          <Route path="community" element={<Community/>}/>
 
         </Route>
 
