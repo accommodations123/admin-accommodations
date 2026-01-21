@@ -8,15 +8,19 @@ import AdminLayout from "./layouts/AdminLayout";
 import Dashboard from "./pages/Dashboard";
 import HostingApproval from "./pages/HostingApproval";
 import Events from "./pages/Events";
-import Carrer from "./pages/Carrer";
-// import Buysell from "./pages/Buysell";
+
 import AccommodationCategories from "./pages/AccommodationPages/AccommodationCategories";
 import PropertyDetail from "./pages/AccommodationPages/PropertyDetail";
 import PropertyList from "./pages/AccommodationPages/PropertyList";
 
-// Import the Buysellpages component
 import Buysellpages from "./pages/buysell/Buysellpages";
 import Community from "./Community";
+// ---------------------------------------------------------
+// IMPORTANT: Ensure this path matches where you saved the files
+import TravelAdmin from './Traveladmin/TravelAdmin';
+// ---------------------------------------------------------
+import CareerPages from "./pages/carrerpages/Carrerpages";
+import Hostdetailpages from "./pages/HostDetails/Hostdetailpages";
 
 function App() {
   const isAuth = localStorage.getItem("admin-auth");
@@ -51,15 +55,18 @@ function App() {
           <Route path="events" element={<Events />} />
 
           {/* Career */}
-          <Route path="career" element={<Carrer />} />
+          <Route path="career" element={<CareerPages />} />
 
-          {/* --- CORRECTED ROUTE --- */}
-          {/* Changed path from "Buy and Sell" to "buy-and-sell" to match Sidebar link */}
-          {/* <Route path="buy-and-sell" element={<Buysell />} /> */}
-
-          {/* NEW ROUTE FOR BUYSELLPAGES COMPONENT */}
+          {/* Buy and Sell */}
           <Route path="buy-and-sell" element={<Buysellpages />} />
-          <Route path="community" element={<Community/>}/>
+          <Route path="community" element={<Community />} />
+
+          {/* TRAVEL ADMIN ROUTE */}
+          {/* Note: 'travell' matches your sidebar link. If you want to fix the typo, change path to "travel" */}
+          <Route path="travell" element={<TravelAdmin />} />
+          {/* ------------------------------------------------- */}
+
+          <Route path="host-details" element={<Hostdetailpages />} />
 
         </Route>
 

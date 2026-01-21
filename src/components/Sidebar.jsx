@@ -22,8 +22,10 @@ const Sidebar = () => {
     { name: 'Accommodation', path: '/dashboard/accommodation', icon: Building },
     { name: 'Events', path: '/dashboard/events', icon: Calendar },
     { name: 'Career', path: '/dashboard/career', icon: Briefcase },
-    { name: 'Community', path: '/dashboard/community', icon: Users }, // <--- Added this line
+    { name: 'Community', path: '/dashboard/community', icon: Users }, 
     { name: 'Buy and Sell', path: '/dashboard/buy-and-sell', icon: ShoppingBag },
+    { name: 'Travel', path: '/dashboard/travell', icon: ShoppingBag }, 
+    { name: 'Host Details', path: '/dashboard/host-details', icon: ShoppingBag }, 
   ];
 
   // Premium Link Styling using your colors
@@ -75,30 +77,7 @@ const Sidebar = () => {
         </nav>
       </div>
 
-      {/* BOTTOM SECTION: USER PROFILE & LOGOUT */}
-      <div className="p-4 mb-2">
-        
-        {/* Mini User Profile Card for Premium Look */}
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#001f3d]/50 border border-white/5 mb-4">
-          <div className="w-10 h-10 rounded-full bg-[#cb2926] flex items-center justify-center text-white font-bold text-sm shadow-md">
-            A
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-white">Admin User</span>
-            <span className="text-xs text-blue-300">Super Admin</span>
-          </div>
-        </div>
-
-        {/* Logout Button */}
-        <button
-          onClick={handleLogout}
-          className="flex items-center justify-center w-full px-4 py-3 text-red-300 hover:text-white hover:bg-[#cb2926] hover:shadow-lg hover:shadow-red-900/40 rounded-lg transition-all duration-300 group"
-        >
-          <LogOut className="w-5 h-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Logout</span>
-        </button>
-      </div>
-
+    
     </aside>
   );
 };
