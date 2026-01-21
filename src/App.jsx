@@ -20,7 +20,7 @@ import Community from "./Community";
 import TravelAdmin from './Traveladmin/TravelAdmin';
 // ---------------------------------------------------------
 import CareerPages from "./pages/carrerpages/Carrerpages";
-import Hostdetailpages from "./pages/HostDetails/Hostdetailpages";
+import Hostdetailpages from "./pages/HostDetails/Hostdetailpages"
 
 function App() {
   const isAuth = localStorage.getItem("admin-auth");
