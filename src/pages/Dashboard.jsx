@@ -1,171 +1,50 @@
-import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
 import {
   RefreshCw,
   AlertCircle,
-  Settings,
-  Search,
-  ArrowUp,
-  ArrowDown,
-  User,
-  FileText,
-  CheckCircle,
-  Calendar,
   Building,
+  Calendar,
   Briefcase,
   UserPlus,
-  TrendingUp,
-  DollarSign,
-  Star,
-  Eye,
-  Edit,
-  Trash2,
-  Bell,
-  ChevronDown,
-  Activity,
+  FileText,
+  Settings,
   Download,
-  BarChart3,
-  PieChart as PieChartIcon,
-  MapPin,
-  Users,
-  Clock,
-  Zap,
-  Target,
-  Award,
-  Headphones,
-  MessageSquare,
-  CreditCard,
-  ShoppingBag,
-  Globe,
-  TrendingDown,
-  Filter,
-  MoreHorizontal,
-  Mail,
-  Phone,
-  GraduationCap,
-  Send,
+  FileSpreadsheet,
+  X,
 } from "lucide-react";
 
-// Import chart components
-import LineChart from "../components/charts/LineChart";
-import BarChart from "../components/charts/BarChart";
-import PieChart from "../components/charts/PieChart";
+// --- NEW IMPORTS FOR EXPORT ---
 
-/* ======================================================
-   AXIOS INSTANCE
-====================================================== */
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://accomodation.api.test.nextkinlife.live";
+// Services & Hooks
+import { dashboardAPI } from "../services/dashboardService";
+import { useApi } from "../hooks/useApi";
 
-const api = axios.create({
-  baseURL: API_URL,
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+// Utils
+import * as Utils from "../utils/dashboardUtils";
 
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("admin-auth");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("admin-auth");
-      window.location.href = "/admin/login";
-    }
-    return Promise.reject(error);
-  }
-);
-
-/* ======================================================
-   DASHBOARD API
-====================================================== */
-
-const dashboardAPI = {
-  getAnalyticsSummary: () =>
-    api.get("/analytics/summary").then((r) => r.data),
-
-  getAnalyticsTimeseries: (event, range) =>
-    api
-      .get(`/analytics/timeseries?event=${event}&range=${range}`)
-      .then((r) => r.data),
-
-  getAnalyticsByLocation: (event) =>
-    api
-      .get(`/analytics/by-location?event=${event}`)
-      .then((r) => r.data),
-
-  getEventAnalyticsSummary: () =>
-    api.get("/eventanalytics/summary").then((r) => r.data),
-
-  getEventEngagementTimeseries: (type, days) =>
-    api
-      .get(`/eventanalytics/engagement?type=${type}&days=${days}`)
-      .then((r) => r.data),
-
-  getEventAnalyticsByLocation: () =>
-    api.get("/eventanalytics/by-location").then((r) => r.data),
-};
-
-/* ======================================================
-   useApi HOOK
-====================================================== */
-
-const useApi = (apiFn, deps = []) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await apiFn();
-      setData(result);
-    } catch (err) {
-      setError(
-        err.response?.data?.message || "Failed to load dashboard data"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [apiFn]);
-
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-
-  return { data, loading, error, refetch: fetchData };
-};
-
-/* ======================================================
-   DASHBOARD COMPONENT
-====================================================== */
+// Components
+import OverviewSection from "../components/dashboard/sections/OverviewSection";
+import EventsSection from "../components/dashboard/sections/EventsSection";
+import AccommodationsSection from "../components/dashboard/sections/AccommodationsSection";
+import BuySellSection from "../components/dashboard/sections/BuySellSection";
+import TravelSection from "../components/dashboard/sections/TravelSection";
+import CommunitiesSection from "../components/dashboard/sections/CommunitiesSection";
+import CareersSection from "../components/dashboard/sections/CareersSection";
+import UsersSection from "../components/dashboard/sections/UsersSection";
 
 const Dashboard = () => {
   const [timeGreeting, setTimeGreeting] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [activeSection, setActiveSection] = useState("overview");
   const [selectedEvent, setSelectedEvent] = useState("HOST_CREATED");
   const [selectedRange, setSelectedRange] = useState("30d");
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
+  // State for Export Menu
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // --- API Calls (Existing Logic) ---
   const {
     data: analyticsSummary,
     loading: summaryLoading,
@@ -178,11 +57,7 @@ const Dashboard = () => {
     loading: timeseriesLoading,
     refetch: refetchTimeseries,
   } = useApi(
-    () =>
-      dashboardAPI.getAnalyticsTimeseries(
-        selectedEvent,
-        selectedRange
-      ),
+    () => dashboardAPI.getAnalyticsTimeseries(selectedEvent, selectedRange),
     [selectedEvent, selectedRange]
   );
 
@@ -190,10 +65,7 @@ const Dashboard = () => {
     data: analyticsByLocation,
     loading: locationLoading,
     refetch: refetchLocation,
-  } = useApi(
-    () => dashboardAPI.getAnalyticsByLocation(selectedEvent),
-    [selectedEvent]
-  );
+  } = useApi(() => dashboardAPI.getAnalyticsByLocation(selectedEvent), [selectedEvent]);
 
   const {
     data: eventAnalyticsSummary,
@@ -205,14 +77,7 @@ const Dashboard = () => {
     data: eventEngagementTimeseries,
     loading: eventEngagementLoading,
     refetch: refetchEventEngagement,
-  } = useApi(
-    () =>
-      dashboardAPI.getEventEngagementTimeseries(
-        "EVENT_JOINED",
-        30
-      ),
-    []
-  );
+  } = useApi(() => dashboardAPI.getEventEngagementTimeseries("EVENT_JOINED", 30), []);
 
   const {
     data: eventAnalyticsByLocation,
@@ -220,8 +85,87 @@ const Dashboard = () => {
     refetch: refetchEventLocation,
   } = useApi(() => dashboardAPI.getEventAnalyticsByLocation(), []);
 
+  const {
+    data: buySellOverview,
+    loading: buySellOverviewLoading,
+    refetch: refetchBuySellOverview,
+  } = useApi(() => dashboardAPI.getBuySellOverview(selectedRange), [selectedRange]);
+
+  const {
+    data: buySellTrend,
+    loading: buySellTrendLoading,
+    refetch: refetchBuySellTrend,
+  } = useApi(() => dashboardAPI.getBuySellDailyTrend(selectedRange), [selectedRange]);
+
+  const {
+    data: buySellCountry,
+    loading: buySellCountryLoading,
+    refetch: refetchBuySellCountry,
+  } = useApi(() => dashboardAPI.getBuySellByCountry(), []);
+
+  const {
+    data: buySellRatio,
+    loading: buySellRatioLoading,
+    refetch: refetchBuySellRatio,
+  } = useApi(() => dashboardAPI.getBuySellApprovalRatio(), []);
+
+  const {
+    data: travelOverview,
+    loading: travelOverviewLoading,
+    refetch: refetchTravelOverview,
+  } = useApi(() => dashboardAPI.getTravelOverview(selectedRange), [selectedRange]);
+
+  const {
+    data: travelTrend,
+    loading: travelTrendLoading,
+    refetch: refetchTravelTrend,
+  } = useApi(() => dashboardAPI.getTravelDailyTrend(selectedRange), [selectedRange]);
+
+  const {
+    data: travelCountry,
+    loading: travelCountryLoading,
+    refetch: refetchTravelCountry,
+  } = useApi(() => dashboardAPI.getTravelByCountry(), []);
+
+  const {
+    data: travelMatchConversion,
+    loading: travelMatchConversionLoading,
+    refetch: refetchTravelMatchConversion,
+  } = useApi(() => dashboardAPI.getTravelMatchConversion(), []);
+
+  const {
+    data: communityOverview,
+    loading: communityOverviewLoading,
+    refetch: refetchCommunityOverview,
+  } = useApi(() => dashboardAPI.getCommunityOverview(selectedRange), [selectedRange]);
+
+  const {
+    data: communityTrend,
+    loading: communityTrendLoading,
+    refetch: refetchCommunityTrend,
+  } = useApi(() => dashboardAPI.getCommunityDailyTrend(selectedRange), [selectedRange]);
+
+  const {
+    data: communityCountry,
+    loading: communityCountryLoading,
+    refetch: refetchCommunityCountry,
+  } = useApi(() => dashboardAPI.getCommunityByCountry(), []);
+
+  const {
+    data: communityRatio,
+    loading: communityRatioLoading,
+    refetch: refetchCommunityRatio,
+  } = useApi(() => dashboardAPI.getCommunityApprovalRatio(), []);
+
+  const {
+    data: communityMembership,
+    loading: communityMembershipLoading,
+    refetch: refetchCommunityMembership,
+  } = useApi(() => dashboardAPI.getCommunityMembershipActivity(), []);
+
   const hasError = summaryError;
 
+  // --- REFRESH LOGIC ---
   const handleRefresh = () => {
     setRefreshing(true);
     refetchSummary();
@@ -230,8 +174,122 @@ const Dashboard = () => {
     refetchEventSummary();
     refetchEventEngagement();
     refetchEventLocation();
+    refetchBuySellOverview();
+    refetchBuySellTrend();
+    refetchBuySellCountry();
+    refetchBuySellRatio();
+    refetchTravelOverview();
+    refetchTravelTrend();
+    refetchTravelCountry();
+    refetchTravelMatchConversion();
+    refetchCommunityOverview();
+    refetchCommunityTrend();
+    refetchCommunityCountry();
+    refetchCommunityRatio();
+    refetchCommunityMembership();
 
     setTimeout(() => setRefreshing(false), 1200);
+  };
+
+  // --- EXPORT TO EXCEL LOGIC ---
+  const handleExportExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    // 1. Summary Sheet
+    const summaryData = [
+      ...Utils.getHostStats(analyticsSummary).map(s => ({ Section: "Host", ...s })),
+      ...Utils.getPropertyStats(analyticsSummary).map(s => ({ Section: "Property", ...s })),
+      ...Utils.getEventStats(eventAnalyticsSummary).map(s => ({ Section: "Event", ...s })),
+      ...Utils.getBuySellOverviewStats(buySellOverview).map(s => ({ Section: "Buy/Sell", ...s })),
+      ...Utils.getTravelStats(travelOverview).map(s => ({ Section: "Travel", ...s })),
+      ...Utils.getCommunityStats(communityOverview).map(s => ({ Section: "Community", ...s }))
+    ];
+    if (summaryData.length > 0) {
+      const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Overview Summary");
+    }
+
+    // 2. Timeseries Sheet
+    if (analyticsTimeseries?.labels) {
+      const timeseriesTable = analyticsTimeseries.labels.map((label, index) => {
+        let row = { Date: label };
+        analyticsTimeseries.datasets.forEach(dataset => {
+          row[dataset.label] = dataset.data[index];
+        });
+        return row;
+      });
+      const wsTimeseries = XLSX.utils.json_to_sheet(timeseriesTable);
+      XLSX.utils.book_append_sheet(wb, wsTimeseries, "Time Series");
+    }
+
+    // 3. Location Sheet
+    if (analyticsByLocation?.length > 0) {
+      const wsLocation = XLSX.utils.json_to_sheet(analyticsByLocation);
+      XLSX.utils.book_append_sheet(wb, wsLocation, "By Location");
+    }
+
+    // 4. Buy/Sell Data
+    if (buySellOverview?.length > 0) {
+      const wsBuySell = XLSX.utils.json_to_sheet(buySellOverview);
+      XLSX.utils.book_append_sheet(wb, wsBuySell, "Buy/Sell Details");
+    }
+
+    // 5. Travel Data
+    if (travelOverview?.length > 0) {
+      const wsTravel = XLSX.utils.json_to_sheet(travelOverview);
+      XLSX.utils.book_append_sheet(wb, wsTravel, "Travel Details");
+    }
+
+    XLSX.writeFile(wb, `Dashboard_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    setShowExportMenu(false);
+  };
+
+  // --- EXPORT TO PDF LOGIC ---
+  const handleExportPdf = () => {
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("Platform Analytics Report", 14, 22);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    // 1. Summary Table
+    const summaryData = [
+      ...Utils.getHostStats(analyticsSummary).map(s => ({ ...s })),
+      ...Utils.getPropertyStats(analyticsSummary).map(s => ({ ...s })),
+      ...Utils.getEventStats(eventAnalyticsSummary).map(s => ({ ...s })),
+    ];
+
+    if (summaryData.length > 0) {
+      doc.autoTable({
+        head: [['Label', 'Value', 'Trend']],
+        body: summaryData.map(s => [s.label, s.value, s.trend || '-']),
+        startY: 40,
+      });
+    }
+
+    // 2. Timeseries Table (Flattened)
+    if (analyticsTimeseries?.labels) {
+      const flatData = analyticsTimeseries.labels.map((label, index) => {
+        let row = { Date: label };
+        analyticsTimeseries.datasets.forEach(ds => {
+          row[ds.label] = ds.data[index];
+        });
+        return row;
+      });
+
+      const headers = Object.keys(flatData[0] || {});
+      doc.autoTable({
+        head: [headers],
+        body: flatData.map(row => headers.map(h => row[h])),
+        startY: doc.lastAutoTable.finalY + 20,
+      });
+    }
+
+    doc.save(`Dashboard_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    setShowExportMenu(false);
   };
 
   useEffect(() => {
@@ -244,168 +302,14 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Transform analytics summary data for display
-  const getHostStats = () => {
-    if (!analyticsSummary?.hosts) return [];
-
-    return [
-
-      {
-        title: "Hosts Created",
-        value: analyticsSummary.hosts.created || 0,
-        icon: User,
-        bgColor: "bg-blue-50",
-        textColor: "text-blue-600",
-      },
-      {
-        title: "Hosts Approved",
-        value: analyticsSummary.hosts.approved || 0,
-        icon: CheckCircle,
-        bgColor: "bg-green-50",
-        textColor: "text-green-600",
-      },
-      {
-        title: "Hosts Rejected",
-        value: analyticsSummary.hosts.rejected || 0,
-        icon: AlertCircle,
-        bgColor: "bg-red-50",
-        textColor: "text-red-600",
-      },
-    ];
-
-  };
-
-  const getPropertyStats = () => {
-    if (!analyticsSummary?.properties) return [];
-
-    return [
-
-      {
-        title: "Properties Drafted",
-        value: analyticsSummary.properties.drafted || 0,
-        icon: FileText,
-        bgColor: "bg-purple-50",
-        textColor: "text-purple-600",
-      },
-      {
-        title: "Properties Submitted",
-        value: analyticsSummary.properties.submitted || 0,
-        icon: Send,
-        bgColor: "bg-yellow-50",
-        textColor: "text-yellow-600",
-      },
-      {
-        title: "Properties Approved",
-        value: analyticsSummary.properties.approved || 0,
-        icon: CheckCircle,
-        bgColor: "bg-green-50",
-        textColor: "text-green-600",
-      },
-      {
-        title: "Properties Rejected",
-        value: analyticsSummary.properties.rejected || 0,
-        icon: AlertCircle,
-        bgColor: "bg-red-50",
-        textColor: "text-red-600",
-      },
-    ];
-
-  };
-
-  // Transform event analytics summary data for display
-  const getEventStats = () => {
-    if (!eventAnalyticsSummary?.stats) return [];
-
-    return [
-
-      {
-        title: "Event Drafts",
-        value: eventAnalyticsSummary.stats.drafts || 0,
-        icon: FileText,
-        bgColor: "bg-blue-50",
-        textColor: "text-blue-600",
-      },
-      {
-        title: "Events Submitted",
-        value: eventAnalyticsSummary.stats.submitted || 0,
-        icon: Calendar,
-        bgColor: "bg-green-50",
-        textColor: "text-green-600",
-      },
-      {
-        title: "Events Approved",
-        value: eventAnalyticsSummary.stats.approved || 0,
-        icon: CheckCircle,
-        bgColor: "bg-purple-50",
-        textColor: "text-purple-600",
-      },
-      {
-        title: "Events Rejected",
-        value: eventAnalyticsSummary.stats.rejected || 0,
-        icon: AlertCircle,
-        bgColor: "bg-red-50",
-        textColor: "text-red-600",
-      },
-    ];
-
-  };
-
-  // Transform location data for charts
-  const getLocationDataForChart = () => {
-    if (!analyticsByLocation?.length) return { labels: [], values: [] };
-
-    return {
-      labels: analyticsByLocation.slice(0, 10).map(item => `${item.country}, ${item.state}`),
-      values: analyticsByLocation.slice(0, 10).map(item => item.count)
-    };
-  };
-
-  // Transform event location data for charts
-  const getEventLocationDataForChart = () => {
-    if (!eventAnalyticsByLocation?.length) return { labels: [], values: [] };
-
-    return {
-      labels: eventAnalyticsByLocation.slice(0, 10).map(item => `${item.country}, ${item.state}`),
-      values: eventAnalyticsByLocation.slice(0, 10).map(item => item.total)
-    };
-  };
-
-  // Transform property status data for pie chart
-  const getPropertyStatusData = () => {
-    if (!analyticsSummary?.properties) return { labels: [], values: [] };
-
-    return {
-      labels: ['Drafted', 'Submitted', 'Approved', 'Rejected'],
-      values: [
-        analyticsSummary.properties.drafted || 0,
-        analyticsSummary.properties.submitted || 0,
-        analyticsSummary.properties.approved || 0,
-        analyticsSummary.properties.rejected || 0
-      ]
-    };
-  };
-
-  // Transform host status data for pie chart
-  const getHostStatusData = () => {
-    if (!analyticsSummary?.hosts) return { labels: [], values: [] };
-
-    return {
-      labels: ['Created', 'Approved', 'Rejected'],
-      values: [
-        analyticsSummary.hosts.created || 0,
-        analyticsSummary.hosts.approved || 0,
-        analyticsSummary.hosts.rejected || 0
-      ]
-    };
-  };
-
   const isLoading = summaryLoading || timeseriesLoading || locationLoading ||
-    eventSummaryLoading || eventEngagementLoading || eventLocationLoading;
+    eventSummaryLoading || eventEngagementLoading || eventLocationLoading ||
+    buySellOverviewLoading || buySellTrendLoading || buySellCountryLoading || buySellRatioLoading ||
+    travelOverviewLoading || travelTrendLoading || travelCountryLoading || travelMatchConversionLoading ||
+    communityOverviewLoading || communityTrendLoading || communityCountryLoading || communityRatioLoading || communityMembershipLoading;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-
-
+    <div className="min-h-screen bg-gray-50 relative">
       {/* Main Content */}
       <main className="p-6">
         <div className="max-w-7xl mx-auto space-y-6">
@@ -416,15 +320,43 @@ const Dashboard = () => {
                 <h1 className="text-3xl font-bold mb-2">{timeGreeting}, Admin!</h1>
                 <p className="text-blue-100">Here's your platform overview and key insights.</p>
                 <p className="text-sm text-blue-200 mt-2">
-                  {currentTime.toLocaleDateString()} at {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {currentTime.toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  })} at {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
 
-              <div className="flex space-x-3">
-                <button className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-sm font-medium hover:bg-white/30 transition-colors flex items-center">
+              <div className="flex space-x-3 relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 text-sm font-medium hover:bg-white/30 transition-colors flex items-center text-white relative"
+                >
                   <Download size={16} className="mr-2" />
                   Export Report
                 </button>
+
+                {/* EXPORT DROPDOWN MENU */}
+                {showExportMenu && (
+                  <div className="absolute top-full mt-2 right-0 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden">
+                    <button
+                      onClick={handleExportExcel}
+                      className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <FileSpreadsheet size={16} className="mr-3 text-green-600" />
+                      Download Excel
+                    </button>
+                    <button
+                      onClick={handleExportPdf}
+                      className="w-full flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                    >
+                      <FileText size={16} className="mr-3 text-red-600" />
+                      Download PDF
+                    </button>
+                  </div>
+                )}
+
                 <button
                   onClick={handleRefresh}
                   className={`bg-[#cb2926] rounded-lg px-4 py-2 text-sm font-medium hover:bg-opacity-90 transition-colors flex items-center ${refreshing ? 'opacity-70' : ''}`}
@@ -447,13 +379,13 @@ const Dashboard = () => {
           {/* Tabs */}
           <div className="bg-white rounded-xl shadow-sm p-2">
             <div className="flex space-x-1">
-              {['overview', 'accommodations', 'events', 'careers', 'users'].map((section) => (
+              {['overview', 'accommodations', 'events', 'buysell', 'travel', 'communities', 'careers', 'users'].map((section) => (
                 <button
                   key={section}
                   onClick={() => setActiveSection(section)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium ${activeSection === section ? 'bg-[#00162d] text-white' : 'text-gray-700 hover:bg-gray-100'}`}
                 >
-                  {section.charAt(0).toUpperCase() + section.slice(1)}
+                  {section.charAt(0).toUpperCase() + section.slice(1).replace('buysell', 'Buy / Sell')}
                 </button>
               ))}
             </div>
@@ -474,271 +406,92 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* CONTENT: Overview */}
+          {/* CONTENT SECTIONS */}
           {activeSection === 'overview' && (
-            <>
-              {/* Host Analytics */}
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Host Analytics</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {summaryLoading ? (
-                    Array(3).fill(0).map((_, i) => <LoadingCard key={i} />)
-                  ) : getHostStats().length > 0 ? (
-                    getHostStats().map((stat, i) => <StatCard key={i} stat={stat} />)
-                  ) : (
-                    <div className="col-span-3">
-                      <ErrorCard message="No host data available" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Property Analytics */}
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Property Analytics</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {summaryLoading ? (
-                    Array(4).fill(0).map((_, i) => <LoadingCard key={i} />)
-                  ) : getPropertyStats().length > 0 ? (
-                    getPropertyStats().map((stat, i) => <StatCard key={i} stat={stat} />)
-                  ) : (
-                    <div className="col-span-4">
-                      <ErrorCard message="No property data available" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Analytics Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                {/* Analytics Timeseries Chart */}
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">Analytics Timeseries</h3>
-                    <div className="flex space-x-2">
-                      <select
-                        value={selectedEvent}
-                        onChange={(e) => setSelectedEvent(e.target.value)}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#cb2926]"
-                      >
-                        <option value="HOST_CREATED">Host Created</option>
-                        <option value="HOST_APPROVED">Host Approved</option>
-                        <option value="HOST_REJECTED">Host Rejected</option>
-                        <option value="PROPERTY_DRAFT_CREATED">Property Draft Created</option>
-                        <option value="PROPERTY_SUBMITTED">Property Submitted</option>
-                        <option value="PROPERTY_APPROVED">Property Approved</option>
-                        <option value="PROPERTY_REJECTED">Property Rejected</option>
-                      </select>
-                    </div>
-                  </div>
-                  {timeseriesLoading ? (
-                    <div className="h-64 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00162d]"></div>
-                    </div>
-                  ) : analyticsTimeseries?.labels?.length > 0 ? (
-                    <LineChart
-                      data={analyticsTimeseries}
-                      title={`${selectedEvent.replace(/_/g, ' ')} Events`}
-                      height={300}
-                    />
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-gray-500">
-                      No data available
-                    </div>
-                  )}
-                </div>
-
-                {/* Analytics By Location Chart */}
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">Analytics By Location</h3>
-                  </div>
-                  {locationLoading ? (
-                    <div className="h-64 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00162d]"></div>
-                    </div>
-                  ) : analyticsByLocation?.length > 0 ? (
-                    <BarChart
-                      data={getLocationDataForChart()}
-                      title={`${selectedEvent.replace(/_/g, ' ')} By Location`}
-                      height={300}
-                    />
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-gray-500">
-                      No data available
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
+            <OverviewSection
+              loading={summaryLoading}
+              error={summaryError}
+              getHostStats={() => Utils.getHostStats(analyticsSummary)}
+              getPropertyStats={() => Utils.getPropertyStats(analyticsSummary)}
+              getEventStats={() => Utils.getEventStats(eventAnalyticsSummary)}
+              getBuySellOverviewStats={() => Utils.getBuySellOverviewStats(buySellOverview)}
+              getTravelStats={() => Utils.getTravelStats(travelOverview)}
+              getCommunityStats={() => Utils.getCommunityStats(communityOverview)}
+              analyticsTimeseries={analyticsTimeseries}
+              timeseriesLoading={timeseriesLoading}
+              selectedEvent={selectedEvent}
+              setSelectedEvent={setSelectedEvent}
+              analyticsByLocation={analyticsByLocation}
+              locationLoading={locationLoading}
+              getLocationDataForChart={() => Utils.getLocationDataForChart(analyticsByLocation)}
+            />
           )}
 
-          {/* EVENTS Section */}
           {activeSection === 'events' && (
-            <>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-[#00162d] mb-2">Events Analytics</h2>
-                  <p className="text-gray-600">Manage and analyze all platform events.</p>
-                </div>
-
-                {/* Event Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                  {eventSummaryLoading ? (
-                    Array(4).fill(0).map((_, i) => <LoadingCard key={i} />)
-                  ) : getEventStats().length > 0 ? (
-                    getEventStats().map((stat, i) => <StatCard key={i} stat={stat} />)
-                  ) : (
-                    <div className="col-span-4">
-                      <ErrorCard message="No event data available" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Event Engagement Chart */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold text-gray-800">Event Engagement Timeseries</h3>
-                    </div>
-                    {eventEngagementLoading ? (
-                      <div className="h-64 flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00162d]"></div>
-                      </div>
-                    ) : eventEngagementTimeseries?.labels?.length > 0 ? (
-                      <LineChart
-                        data={eventEngagementTimeseries}
-                        title="Event Engagement"
-                        height={300}
-                      />
-                    ) : (
-                      <div className="h-64 flex items-center justify-center text-gray-500">
-                        No data available
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold text-gray-800">Event Analytics By Location</h3>
-                    </div>
-                    {eventLocationLoading ? (
-                      <div className="h-64 flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00162d]"></div>
-                      </div>
-                    ) : eventAnalyticsByLocation?.length > 0 ? (
-                      <PieChart
-                        data={getEventLocationDataForChart()}
-                        title="Events By Location"
-                        height={300}
-                      />
-                    ) : (
-                      <div className="h-64 flex items-center justify-center text-gray-500">
-                        No data available
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </>
+            <EventsSection
+              loading={eventSummaryLoading}
+              getEventStats={() => Utils.getEventStats(eventAnalyticsSummary)}
+              eventEngagementTimeseries={eventEngagementTimeseries}
+              eventEngagementLoading={eventEngagementLoading}
+              eventAnalyticsByLocation={eventAnalyticsByLocation}
+              eventLocationLoading={eventLocationLoading}
+              getEventLocationDataForChart={() => Utils.getEventLocationDataForChart(eventAnalyticsByLocation)}
+            />
           )}
 
-          {/* ACCOMMODATIONS Section */}
           {activeSection === 'accommodations' && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-[#00162d] mb-2">Accommodations</h2>
-                <p className="text-gray-600">Manage all listed accommodations.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                {summaryLoading ? (
-                  Array(4).fill(0).map((_, i) => <LoadingCard key={i} />)
-                ) : getPropertyStats().length > 0 ? (
-                  getPropertyStats().map((stat, i) => <StatCard key={i} stat={stat} />)
-                ) : (
-                  <div className="col-span-4">
-                    <ErrorCard message="No accommodation data available" />
-                  </div>
-                )}
-              </div>
-
-              {/* Property Analytics Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">Property Status Distribution</h3>
-                  </div>
-                  {summaryLoading ? (
-                    <div className="h-64 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00162d]"></div>
-                    </div>
-                  ) : getPropertyStatusData().labels.length > 0 ? (
-                    <PieChart
-                      data={getPropertyStatusData()}
-                      title="Property Status"
-                      height={300}
-                    />
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-gray-500">
-                      No data available
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800">Host Status Distribution</h3>
-                  </div>
-                  {summaryLoading ? (
-                    <div className="h-64 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00162d]"></div>
-                    </div>
-                  ) : getHostStatusData().labels.length > 0 ? (
-                    <PieChart
-                      data={getHostStatusData()}
-                      title="Host Status"
-                      height={300}
-                    />
-                  ) : (
-                    <div className="h-64 flex items-center justify-center text-gray-500">
-                      No data available
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <AccommodationsSection
+              loading={summaryLoading}
+              getPropertyStats={() => Utils.getPropertyStats(analyticsSummary)}
+              getPropertyStatusData={() => Utils.getPropertyStatusData(analyticsSummary)}
+              getHostStatusData={() => Utils.getHostStatusData(analyticsSummary)}
+            />
           )}
 
-          {/* CAREERS Section */}
-          {activeSection === 'careers' && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-[#00162d] mb-2">Careers</h2>
-                <p className="text-gray-600">Manage job listings and applications.</p>
-              </div>
-              <div className="text-center py-12 text-gray-500">
-                <Briefcase size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>Careers module data will be integrated here</p>
-              </div>
-            </div>
+          {activeSection === 'buysell' && (
+            <BuySellSection
+              loading={buySellOverviewLoading}
+              getBuySellOverviewStats={() => Utils.getBuySellOverviewStats(buySellOverview)}
+              buySellTrendLoading={buySellTrendLoading}
+              getBuySellTrendData={() => Utils.getBuySellTrendData(buySellTrend, selectedRange)}
+              buySellCountryLoading={buySellCountryLoading}
+              getBuySellCountryData={() => Utils.getBuySellCountryData(buySellCountry)}
+              buySellRatioLoading={buySellRatioLoading}
+              getBuySellRatioData={() => Utils.getBuySellRatioData(buySellRatio)}
+            />
           )}
 
-          {/* USERS Section */}
-          {activeSection === 'users' && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-[#00162d] mb-2">Users</h2>
-                <p className="text-gray-600">Manage platform users and their activities.</p>
-              </div>
-              <div className="text-center py-12 text-gray-500">
-                <Users size={48} className="mx-auto mb-4 text-gray-300" />
-                <p>Users module data will be integrated here</p>
-              </div>
-            </div>
+          {activeSection === 'travel' && (
+            <TravelSection
+              loading={travelOverviewLoading}
+              getTravelStats={() => Utils.getTravelStats(travelOverview)}
+              travelTrendLoading={travelTrendLoading}
+              getTravelTrendData={() => Utils.getTravelTrendData(travelTrend)}
+              travelCountryLoading={travelCountryLoading}
+              getTravelCountryData={() => Utils.getTravelCountryData(travelCountry)}
+              travelMatchConversionLoading={travelMatchConversionLoading}
+              getTravelMatchConversionData={() => Utils.getTravelMatchConversionData(travelMatchConversion)}
+            />
           )}
 
-          {/* QUICK ACTIONS (common to all sections) */}
+          {activeSection === 'communities' && (
+            <CommunitiesSection
+              loading={communityOverviewLoading}
+              getCommunityStats={() => Utils.getCommunityStats(communityOverview)}
+              communityTrendLoading={communityTrendLoading}
+              getCommunityTrendData={() => Utils.getCommunityTrendData(communityTrend)}
+              communityCountryLoading={communityCountryLoading}
+              getCommunityCountryData={() => Utils.getCommunityCountryData(communityCountry)}
+              communityRatioLoading={communityRatioLoading}
+              getCommunityRatioData={() => Utils.getCommunityRatioData(communityRatio)}
+            />
+          )}
+
+          {activeSection === 'careers' && <CareersSection />}
+
+          {activeSection === 'users' && <UsersSection />}
+
+          {/* QUICK ACTIONS */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -769,57 +522,9 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 };
-
-/* ======================================================
-   STAT CARD COMPONENT
-====================================================== */
-
-const StatCard = ({ stat }) => (
-  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-    <div className="flex items-center mb-4">
-      <div className={`${stat.bgColor} w-12 h-12 rounded-lg flex items-center justify-center mr-4`}>
-        <stat.icon className={stat.textColor} size={24} />
-      </div>
-      <div>
-        <h3 className="text-gray-500 text-sm">{stat.title}</h3>
-        <p className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</p>
-      </div>
-    </div>
-  </div>
-);
-
-/* ======================================================
-   LOADING CARD COMPONENT
-====================================================== */
-
-const LoadingCard = () => (
-  <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-    <div className="animate-pulse">
-      <div className="flex items-center justify-between mb-4">
-        <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-        <div className="w-16 h-6 bg-gray-200 rounded-full"></div>
-      </div>
-      <div className="h-8 bg-gray-200 rounded mb-2"></div>
-      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-    </div>
-  </div>
-);
-
-/* ======================================================
-   ERROR CARD COMPONENT
-====================================================== */
-
-const ErrorCard = ({ message }) => (
-  <div className="bg-white rounded-xl shadow-sm p-6 border border-red-200">
-    <div className="flex items-center text-red-600">
-      <AlertCircle size={20} className="mr-2" />
-      <span className="text-sm">{message || 'Failed to load data'}</span>
-    </div>
-  </div>
-);
 
 export default Dashboard;

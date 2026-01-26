@@ -11,7 +11,7 @@ import {
   Users // <--- Added this import
 } from 'lucide-react';
 
-import logo from '/nextkinlife-logo.jpeg';
+import logo from '/nextkinlife-logo.jpeg'
 
 const Sidebar = () => {
   const navigate = useNavigate();

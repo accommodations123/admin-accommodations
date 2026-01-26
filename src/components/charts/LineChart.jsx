@@ -39,7 +39,14 @@ const LineChart = ({ data, title, height = 300 }) => {
     }
   }, [chartRef]);
 
-  const chartData = {
+  /* ======================================================
+     CHART DATA CONSTRUCTION
+  ====================================================== */
+  // Enhanced to support multiple datasets if provided in data.datasets
+  const chartData = data.datasets ? {
+    labels: data.labels || [],
+    datasets: data.datasets
+  } : {
     labels: data.labels || [],
     datasets: [
       {
@@ -63,7 +70,8 @@ const LineChart = ({ data, title, height = 300 }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false
+        // Show legend if there are multiple datasets
+        display: !!data.datasets
       },
       title: {
         display: false

@@ -11,9 +11,6 @@ import {
   CircularProgress,
   Backdrop,
   Container,
-  AppBar,
-  Toolbar,
-  Badge,
   CssBaseline,
   Table,
   TableHead,
@@ -30,48 +27,40 @@ import {
   Tabs,
   Avatar,
   Tooltip,
-  useTheme,
   alpha,
   Skeleton,
   Fab,
   Zoom,
-  Breadcrumbs,
-  Link,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Alert,
   Snackbar,
-  Menu,
   Stack,
 } from "@mui/material";
 import {
-  Search, // MUI icon
-  Close, // MUI icon
-  Refresh, // MUI icon
-  Dashboard, // MUI icon
-  Notifications, // MUI icon
-  Person, // MUI icon
-  FilterList, // MUI icon
-  CalendarToday, // MUI icon
-  LocationOn, // MUI icon
-  People, // MUI icon
-  Schedule, // MUI icon
-  CheckCircle, // MUI icon
-  ErrorOutline, // MUI icon
-  Info, // MUI icon
-  ChevronRight, // MUI icon
-  Flight, // MUI icon
-  Home, // MUI icon
-  Settings, // MUI icon
-  Logout, // MUI icon
-  MoreVert, // MUI icon
-  FlightTakeoff, // MUI icon
-  FlightLand, // MUI icon
-  AirlineSeatReclineNormal, // MUI icon
+  Search,
+  Close,
+  Refresh,
+  FilterList,
+  CalendarToday,
+  FlightTakeoff,
+  FlightLand,
+  AirlineSeatReclineNormal,
+  Block,
+  Cancel,
+  Info,
+  ErrorOutline,
+  People,
+  Schedule,
+  CheckCircle,
+  Flight,
 } from "@mui/icons-material";
 
-
+// Assuming these are in your project directory
 import TripDetailsModal from "./TripDetailsModal";
 import TravelDashboard from "./TravelDashboard";
-
 
 /* =====================
    API CONFIG
@@ -83,7 +72,6 @@ const TOKEN = localStorage.getItem("admin-auth");
    MAIN COMPONENT
 ===================== */
 export default function TravelAdmin() {
-  const theme = useTheme();
   const [trips, setTrips] = useState([]);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -91,53 +79,67 @@ export default function TravelAdmin() {
   const [viewTrip, setViewTrip] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [tabValue, setTabValue] = useState(0);
+
+  // State for Confirmation Dialog
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    action: null,
+    title: '',
+    message: ''
+  });
+
   const [stats, setStats] = useState({
     totalTrips: 0,
     activeTrips: 0,
     completedTrips: 0,
     totalMatches: 0,
   });
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   /* =====================
      FETCH APIs
   ===================== */
   const fetchTrips = async () => {
-    const res = await fetch(`${BASE_URL}/travel/admin/trips`, {
-      headers: { Authorization: `Bearer ${TOKEN}` },
-    });
-    const json = await res.json();
-    setTrips(json.results || []);
-    return json.results || [];
+    try {
+      const res = await fetch(`${BASE_URL}/travel/admin/trips`, {
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      });
+      const json = await res.json();
+      setTrips(json.results || []);
+      return json.results || [];
+    } catch (err) {
+      console.error("Error fetching trips:", err);
+      return [];
+    }
   };
 
   const fetchMatches = async () => {
-    const res = await fetch(`${BASE_URL}/travel/matches`, {
-      headers: { Authorization: `Bearer ${TOKEN}` },
-    });
-    const json = await res.json();
-    setMatches(json.results || []);
-    return json.results || [];
+    try {
+      const res = await fetch(`${BASE_URL}/travel/matches`, {
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      });
+      const json = await res.json();
+      setMatches(json.results || []);
+      return json.results || [];
+    } catch (err) {
+      console.error("Error fetching matches:", err);
+      return [];
+    }
   };
 
   const fetchAll = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const [tripsData, matchesData] = await Promise.all([fetchTrips(), fetchMatches()]);
-      
-      // Calculate stats
+
       setStats({
         totalTrips: tripsData.length,
         activeTrips: tripsData.filter(t => t.status === 'active').length,
         completedTrips: tripsData.filter(t => t.status === 'completed').length,
         totalMatches: matchesData.length,
       });
-      
-      setSnackbar({ open: true, message: 'Data refreshed successfully', severity: 'success' });
     } catch (err) {
-      console.error("API Error", err);
       setSnackbar({ open: true, message: 'Failed to refresh data', severity: 'error' });
     } finally {
       setLoading(false);
@@ -147,6 +149,61 @@ export default function TravelAdmin() {
   useEffect(() => {
     fetchAll();
   }, []);
+
+  /* =====================
+     ACTION HANDLERS
+  ===================== */
+
+  const handleAction = async (url, method, successMsg) => {
+    setLoading(true);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { Authorization: `Bearer ${TOKEN}` }
+      });
+      const json = await res.json();
+
+      if (res.ok) {
+        setSnackbar({ open: true, message: successMsg, severity: 'success' });
+        fetchAll(); // Refresh to see cascading updates (e.g. cancelled matches)
+      } else {
+        // Handle specific errors from backend (e.g. "Trip already cancelled")
+        throw new Error(json.message || 'Action failed');
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: err.message, severity: 'error' });
+    } finally {
+      setLoading(false);
+      setConfirmDialog({ ...confirmDialog, open: false });
+    }
+  };
+
+  const initiateCancelTrip = (tripId) => {
+    setConfirmDialog({
+      open: true,
+      action: () => handleAction(`${BASE_URL}/travel/admin/trips/${tripId}/cancel`, 'PUT', 'Trip and related matches cancelled successfully'),
+      title: 'Cancel Trip',
+      message: 'Are you sure? This will cancel the trip and ALL associated matches.'
+    });
+  };
+
+  const initiateBlockHost = (hostId) => {
+    setConfirmDialog({
+      open: true,
+      action: () => handleAction(`${BASE_URL}/travel/admin/hosts/${hostId}/block`, 'PUT', 'Host blocked. All trips and matches cancelled.'),
+      title: 'Block Host',
+      message: 'WARNING: This will block the host and CANCEL ALL their trips and matches. This action is irreversible.'
+    });
+  };
+
+  const initiateCancelMatch = (matchId) => {
+    setConfirmDialog({
+      open: true,
+      action: () => handleAction(`${BASE_URL}/travel/admin/matches/${matchId}/cancel`, 'PUT', 'Match cancelled successfully'),
+      title: 'Cancel Match',
+      message: 'Are you sure you want to cancel this match?'
+    });
+  };
 
   /* =====================
      SEARCH FILTER
@@ -161,9 +218,6 @@ export default function TravelAdmin() {
     });
   }, [trips, search, statusFilter]);
 
-  /* =====================
-     MATCH COUNT
-  ===================== */
   const matchCountByTrip = useMemo(() => {
     const map = {};
     matches.forEach((m) => {
@@ -176,22 +230,6 @@ export default function TravelAdmin() {
     setTabValue(newValue);
   };
 
-  const handleProfileMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleProfileMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleNotificationMenuOpen = (event) => {
-    setNotificationAnchorEl(event.currentTarget);
-  };
-
-  const handleNotificationMenuClose = () => {
-    setNotificationAnchorEl(null);
-  };
-
   const handleSnackbarClose = () => {
     setSnackbar({ ...snackbar, open: false });
   };
@@ -199,18 +237,16 @@ export default function TravelAdmin() {
   return (
     <Box sx={{ bgcolor: "#f5f7fa", minHeight: "100vh" }}>
       <CssBaseline />
-
-       <TravelDashboard
-    stats={stats}
-    trips={trips}
-    matches={matches}
-  />
-
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        {/* ================= DASHBOARD COMPONENT ================= */}
-        <Dashboard stats={stats} trips={trips} matches={matches} />
 
-        {/* ================= TABS ================= */}
+        {/* ================= DASHBOARD STATS ================= */}
+        <TravelDashboard
+          stats={stats}
+          trips={trips}
+          matches={matches}
+        />
+
+        {/* ================= TABS & TABLE ================= */}
         <Card elevation={0} sx={{ borderRadius: 3, mb: 3, boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs
@@ -262,6 +298,7 @@ export default function TravelAdmin() {
                       <MenuItem value="all">All Status</MenuItem>
                       <MenuItem value="active">Active</MenuItem>
                       <MenuItem value="completed">Completed</MenuItem>
+                      <MenuItem value="cancelled">Cancelled</MenuItem>
                       <MenuItem value="pending">Pending</MenuItem>
                     </Select>
                   </FormControl>
@@ -288,7 +325,7 @@ export default function TravelAdmin() {
                     <TableCell>Departure</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Matches</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
 
@@ -372,13 +409,14 @@ export default function TravelAdmin() {
                         </TableCell>
 
                         <TableCell>
-                          <Chip 
-                            label={t.status.toUpperCase()} 
+                          <Chip
+                            label={t.status ? t.status.toUpperCase() : 'UNKNOWN'}
                             color={
-                              t.status === 'active' ? 'success' : 
-                              t.status === 'completed' ? 'default' : 
-                              'warning'
-                            } 
+                              t.status === 'active' ? 'success' :
+                                t.status === 'completed' ? 'default' :
+                                  t.status === 'cancelled' ? 'error' :
+                                    'warning'
+                            }
                             size="small"
                             sx={{ fontWeight: 500 }}
                           />
@@ -387,27 +425,51 @@ export default function TravelAdmin() {
                         <TableCell>
                           <Chip
                             label={matchCountByTrip[t.id] || 0}
-                            color={
-                              matchCountByTrip[t.id] > 0 ? "primary" : "default"
-                            }
+                            color={matchCountByTrip[t.id] > 0 ? "primary" : "default"}
                             size="small"
                             variant="outlined"
                             icon={<People sx={{ fontSize: 14 }} />}
                           />
                         </TableCell>
 
-                        <TableCell>
-                          <Tooltip title="View Details">
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => setViewTrip(t)}
-                              sx={{ borderRadius: 2 }}
-                              startIcon={<Info sx={{ fontSize: 16 }} />}
-                            >
-                              View
-                            </Button>
-                          </Tooltip>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+
+                            {/* View Details */}
+                            <Tooltip title="View Details">
+                              <IconButton
+                                size="small"
+                                onClick={() => setViewTrip(t)}
+                                color="primary"
+                              >
+                                <Info sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
+
+                            {/* Cancel Trip (Reject) */}
+                            {t.status !== 'cancelled' && t.status !== 'completed' && (
+                              <Tooltip title="Cancel Trip">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => initiateCancelTrip(t.id)}
+                                  color="error"
+                                >
+                                  <Cancel sx={{ fontSize: 18 }} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+
+                            {/* Block Host */}
+                            <Tooltip title="Block Host">
+                              <IconButton
+                                size="small"
+                                onClick={() => initiateBlockHost(t.host?.id)}
+                                sx={{ color: '#d32f2f' }}
+                              >
+                                <Block sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     ))
@@ -436,8 +498,32 @@ export default function TravelAdmin() {
         open={Boolean(viewTrip)}
         trip={viewTrip}
         matches={matches}
+        onCancelMatch={(id) => initiateCancelMatch(id)}
         onClose={() => setViewTrip(null)}
       />
+
+      {/* ================= CONFIRMATION DIALOG ================= */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {confirmDialog.title}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" color="text.secondary">
+            {confirmDialog.message}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}>Disagree</Button>
+          <Button onClick={confirmDialog.action} color={confirmDialog.title.includes('Cancel') ? 'error' : 'warning'} autoFocus variant="contained">
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ================= FLOATING ACTION BUTTON ================= */}
       <Zoom in={true} timeout={300} style={{ transitionDelay: '300ms' }}>
@@ -456,7 +542,7 @@ export default function TravelAdmin() {
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <CircularProgress color="primary" />
           <Typography variant="body1" sx={{ mt: 2 }}>
-            Loading data...
+            Processing...
           </Typography>
         </Box>
       </Backdrop>

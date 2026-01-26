@@ -5,7 +5,7 @@ import axios from "axios";
 /* ==============================
    API CONFIG
 ================================ */
-const API_BASE = "https://accomodation.api.test.nextkinlife.live";
+const API_BASE = import.meta.env.VITE_API_URL || "https://accomodation.api.test.nextkinlife.live";
 
 const api = axios.create({ baseURL: API_BASE });
 
@@ -368,8 +368,8 @@ const ManageListings = () => {
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-6 py-3 rounded-lg font-medium transition-all ${activeTab === tab
-                                    ? "bg-blue-600 text-white shadow-md"
-                                    : "text-gray-600 hover:bg-gray-100"
+                                ? "bg-blue-600 text-white shadow-md"
+                                : "text-gray-600 hover:bg-gray-100"
                                 }`}
                         >
                             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -416,8 +416,8 @@ const ManageListings = () => {
                                         <td className="p-4 text-gray-700">{l.phone}</td>
                                         <td className="p-4">
                                             <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${l.status === "active" ? "bg-green-100 text-green-800" :
-                                                    l.status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                                                        "bg-red-100 text-red-800"
+                                                l.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                                                    "bg-red-100 text-red-800"
                                                 }`}>
                                                 {l.status}
                                             </span>
