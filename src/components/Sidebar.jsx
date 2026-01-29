@@ -11,7 +11,7 @@ import {
   Users // <--- Added this import
 } from 'lucide-react';
 
-import logo from '/nextkinlife-logo.jpeg'
+
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -51,7 +51,7 @@ const Sidebar = () => {
       <div>
         <div className="h-20 flex items-center justify-center border-b border-white/5 shadow-lg shadow-black/20 backdrop-blur-md">
           <img
-            src={logo}
+            src='/nextkinlife-logo.jpeg'
             alt="NextKinLife Logo"
             className="h-12 w-auto object-contain drop-shadow-md" 
           />
