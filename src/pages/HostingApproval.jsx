@@ -48,6 +48,8 @@ import AccomadationStats from "../pages/AccommodationPages/AccomadationStats";
 
 const API = {
   PENDING: "https://accomodation.api.test.nextkinlife.live/adminproperty/pending",
+  APPROVED: "https://accomodation.api.test.nextkinlife.live/adminproperty/admin/properties/approved",
+  REJECTED: "https://accomodation.api.test.nextkinlife.live/adminproperty/admin/properties/rejected",
   APPROVE: (id) => `https://accomodation.api.test.nextkinlife.live/adminproperty/approve/${id}`,
   REJECT: (id) => `https://accomodation.api.test.nextkinlife.live/adminproperty/reject/${id}`,
 };
@@ -58,18 +60,18 @@ function cn(...classes) {
 }
 
 // --- COMPONENTS ---
-const Button = ({ 
-  children, 
-  onClick, 
-  variant = "primary", 
-  size = "md", 
-  className = "", 
-  icon: Icon, 
+const Button = ({
+  children,
+  onClick,
+  variant = "primary",
+  size = "md",
+  className = "",
+  icon: Icon,
   disabled = false,
-  ...props 
+  ...props
 }) => {
   const baseStyles = "inline-flex items-center justify-center font-medium rounded-2xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed border border-transparent";
-  
+
   const sizes = {
     sm: "px-3 py-1.5 text-xs",
     md: "px-4 py-2 text-sm",
@@ -168,7 +170,7 @@ const HostingApproval = () => {
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Modals
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -183,13 +185,13 @@ const HostingApproval = () => {
   const [searchText, setSearchText] = useState("");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
   const [dateRange, setDateRange] = useState({ start: null, end: null });
-  
+
   // UI State
   const [imageError, setImageError] = useState({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeView, setActiveView] = useState("grid");
   const [actionInProgress, setActionInProgress] = useState(false);
-  
+
   // Stats
   const [stats, setStats] = useState({
     total: 0,
@@ -263,7 +265,6 @@ const HostingApproval = () => {
       createdAt: raw?.createdAt ?? raw?.created_at ?? null,
       updatedAt: raw?.updatedAt ?? raw?.updated_at ?? null,
       owner: {
-        id: owner?.userId ?? owner?.id ?? owner?.user_id ?? null,
         email: owner?.email ?? owner?.User?.email ?? null,
         phone: owner?.verification?.phone ?? owner?.phone ?? null,
         fullName: owner?.verification?.full_name ?? owner?.full_name ?? null,
@@ -272,21 +273,45 @@ const HostingApproval = () => {
     };
   };
 
-  // Fetch pending properties
+  // Fetch all properties (pending, approved, rejected)
   useEffect(() => {
     let mounted = true;
-    const fetchPending = async () => {
+    const fetchAllProperties = async () => {
       setLoading(true);
       setError(null);
       try {
         const token = localStorage.getItem("admin-auth");
-        const res = await axios.get(API.PENDING, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-        const serverList = Array.isArray(res?.data?.data) ? res.data.data : [];
-        const normalized = serverList.map(normalize);
-        
+        // Fetch all 3 endpoints concurrently
+        const [pendingRes, approvedRes, rejectedRes] = await Promise.allSettled([
+          axios.get(API.PENDING, { headers }),
+          axios.get(API.APPROVED, { headers }),
+          axios.get(API.REJECTED, { headers })
+        ]);
+
+        // Helper to extract data safely
+        const extractData = (res) => {
+          if (res.status === 'fulfilled') {
+            const data = res.value?.data;
+            if (Array.isArray(data)) return data;
+            if (Array.isArray(data?.data)) return data.data;
+            if (Array.isArray(data?.properties)) return data.properties;
+            return [];
+          }
+          console.error("Fetch failed:", res.reason);
+          return [];
+        };
+
+        const pendingList = extractData(pendingRes).map(item => ({ ...item, status: 'pending' }));
+        const approvedList = extractData(approvedRes).map(item => ({ ...item, status: 'approved' }));
+        const rejectedList = extractData(rejectedRes).map(item => ({ ...item, status: 'rejected' }));
+
+        // Merge all lists
+        // Note: We map status manually because the API might not return it or might return something else
+        const allRawProperties = [...pendingList, ...approvedList, ...rejectedList];
+        const normalized = allRawProperties.map(normalize);
+
         if (mounted) {
           setProperties(normalized);
           setStats({
@@ -297,14 +322,14 @@ const HostingApproval = () => {
           });
         }
       } catch (err) {
-        console.error("Fetch pending error:", err);
-        if (mounted) setError("Failed to fetch pending properties.");
+        console.error("Fetch properties error:", err);
+        if (mounted) setError("Failed to fetch properties.");
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
-    fetchPending();
+    fetchAllProperties();
     return () => (mounted = false);
   }, [refreshKey]);
 
@@ -332,9 +357,9 @@ const HostingApproval = () => {
         const country = p.country?.toLowerCase() || "";
         const ownerName = p.owner?.fullName?.toLowerCase() || "";
         const ownerEmail = p.owner?.email?.toLowerCase() || "";
-        return title.includes(lowerSearch) || type.includes(lowerSearch) || 
-               city.includes(lowerSearch) || country.includes(lowerSearch) ||
-               ownerName.includes(lowerSearch) || ownerEmail.includes(lowerSearch);
+        return title.includes(lowerSearch) || type.includes(lowerSearch) ||
+          city.includes(lowerSearch) || country.includes(lowerSearch) ||
+          ownerName.includes(lowerSearch) || ownerEmail.includes(lowerSearch);
       });
     }
 
@@ -351,10 +376,10 @@ const HostingApproval = () => {
       });
 
       // Update local state
-      setProperties(prev => prev.map(p => 
+      setProperties(prev => prev.map(p =>
         p._id === String(id) ? { ...p, status: 'approved' } : p
       ));
-      
+
       setStats(prev => ({
         ...prev,
         pending: prev.pending - 1,
@@ -364,7 +389,7 @@ const HostingApproval = () => {
       // Show success notification
       const property = properties.find(p => p._id === String(id));
       showToast(`"${property?.title || 'Property'}" has been approved`, 'success');
-      
+
     } catch (err) {
       console.error("Approval error:", err);
       showToast("Failed to approve property", 'error');
@@ -381,7 +406,7 @@ const HostingApproval = () => {
   const handleRejectConfirm = async () => {
     if (actionInProgress || !rejectionReason.trim() || !token || !currentPropertyId) return;
     setActionInProgress(true);
-    
+
     try {
       await axios.put(API.REJECT(currentPropertyId), {
         reason: rejectionReason.trim(),
@@ -390,14 +415,14 @@ const HostingApproval = () => {
       });
 
       // Update local state
-      setProperties(prev => prev.map(p => 
-        p._id === String(currentPropertyId) ? { 
-          ...p, 
+      setProperties(prev => prev.map(p =>
+        p._id === String(currentPropertyId) ? {
+          ...p,
           status: 'rejected',
           rejectionReason: rejectionReason.trim()
         } : p
       ));
-      
+
       setStats(prev => ({
         ...prev,
         pending: prev.pending - 1,
@@ -407,12 +432,12 @@ const HostingApproval = () => {
       // Show success notification
       const property = properties.find(p => p._id === String(currentPropertyId));
       showToast(`"${property?.title || 'Property'}" has been rejected`, 'error');
-      
+
       // Close modal
       setRejectModalOpen(false);
       setRejectionReason("");
       setCurrentPropertyId(null);
-      
+
     } catch (err) {
       console.error("Rejection error:", err);
       showToast("Failed to reject property", 'error');
@@ -423,7 +448,7 @@ const HostingApproval = () => {
 
   const handleDelete = async (id) => {
     if (!token) return;
-    if(!window.confirm("Are you sure you want to delete this property? This action cannot be undone.")) return;
+    if (!window.confirm("Are you sure you want to delete this property? This action cannot be undone.")) return;
 
     try {
       // Note: You'll need to add a delete endpoint in your API
@@ -472,7 +497,7 @@ const HostingApproval = () => {
   };
 
   const getPropertyTypeIcon = (type) => {
-    switch(type?.toLowerCase()) {
+    switch (type?.toLowerCase()) {
       case 'house': return HomeIcon;
       case 'apartment': return BuildingOfficeIcon;
       case 'villa': return BuildingOffice2Icon;
@@ -489,123 +514,123 @@ const HostingApproval = () => {
   const propertyTypes = Array.from(new Set(properties.map(p => p.propertyType).filter(Boolean)));
 
   // Property Card Component
-// Replace the existing PropertyCard component with this version
+  // Replace the existing PropertyCard component with this version
 
-const PropertyCard = ({ property }) => {
-  const PropertyIcon = getPropertyTypeIcon(property.propertyType);
-  const hasError = imageError[property._id];
-  const mainPhoto = property.photos?.[0];
+  const PropertyCard = ({ property }) => {
+    const PropertyIcon = getPropertyTypeIcon(property.propertyType);
+    const hasError = imageError[property._id];
+    const mainPhoto = property.photos?.[0];
 
-  return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] ring-1 ring-slate-900/5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
-      {/* Image Section */}
-      <div className="relative h-52 w-full bg-gradient-to-br from-slate-100 to-slate-200">
-        {mainPhoto && !hasError ? (
-          <img 
-            src={mainPhoto} 
-            alt={property.title} 
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-            onError={() => setImageError(p => ({ ...p, [property._id]: true }))}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-            <PropertyIcon className="h-12 w-12 text-slate-300" />
+    return (
+      <div className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] ring-1 ring-slate-900/5 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
+        {/* Image Section */}
+        <div className="relative h-52 w-full bg-gradient-to-br from-slate-100 to-slate-200">
+          {mainPhoto && !hasError ? (
+            <img
+              src={mainPhoto}
+              alt={property.title}
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              onError={() => setImageError(p => ({ ...p, [property._id]: true }))}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+              <PropertyIcon className="h-12 w-12 text-slate-300" />
+            </div>
+          )}
+
+          {/* Badges */}
+          <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+            <span className="inline-flex items-center rounded-lg bg-white/90 backdrop-blur-sm px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm ring-1 ring-slate-900/5">
+              {property.status}
+            </span>
           </div>
-        )}
-        
-        {/* Badges */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
-          <span className="inline-flex items-center rounded-lg bg-white/90 backdrop-blur-sm px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm ring-1 ring-slate-900/5">
-            {property.status}
-          </span>
-        </div>
-        
-        {/* Type Label (Bottom Left) */}
-        <div className="absolute bottom-3 left-3">
-          <span className="inline-flex items-center rounded-lg bg-black/40 backdrop-blur-md px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg border border-white/10">
-            {property.propertyType || 'APARTMENT entire place'}
-          </span>
-        </div>
-      </div>
 
-      {/* Content Section */}
-      <div className="flex flex-1 flex-col p-5">
-        
-        {/* Title & Location Block */}
-        <div className="mb-4">
-          <h3 className="mb-1 truncate text-lg font-bold text-slate-900 leading-tight tracking-tight">
-            {property.title || `${property.propertyType} in ${property.city}`}
-          </h3>
-          <div className="flex items-start gap-1.5 text-sm font-medium text-slate-500">
-            <MapPinIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-slate-400" />
-            <span className="line-clamp-1">
-              {property.city}, {property.country}
+          {/* Type Label (Bottom Left) */}
+          <div className="absolute bottom-3 left-3">
+            <span className="inline-flex items-center rounded-lg bg-black/40 backdrop-blur-md px-3 py-1 text-xs font-bold uppercase tracking-wider text-white shadow-lg border border-white/10">
+              {property.propertyType || 'APARTMENT entire place'}
             </span>
           </div>
         </div>
 
-        {/* Vertical Specs Grid */}
-        <div className="mb-5 grid grid-cols-2 gap-y-3 gap-x-2 border-t border-slate-100 pt-4">
-          {/* Guests */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Guests</span>
-            <span className="text-sm font-bold text-slate-900">{property.guests || 0}</span>
-          </div>
-          {/* Bedrooms */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Bedrooms</span>
-            <span className="text-sm font-bold text-slate-900">{property.bedrooms || 0}</span>
-          </div>
-          {/* Bathrooms */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Bathrooms</span>
-            <span className="text-sm font-bold text-slate-900">{property.bathrooms || 0}</span>
-          </div>
-          {/* Area */}
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Area</span>
-            <span className="text-sm font-bold text-slate-900">{property.area || 0} sqft</span>
-          </div>
-        </div>
+        {/* Content Section */}
+        <div className="flex flex-1 flex-col p-5">
 
-        {/* Owner Block */}
-        {property.owner?.fullName && (
-          <div className="mb-auto mt-2 flex items-center gap-2.5 rounded-lg bg-slate-50 p-2.5">
-             {/* Initials Avatar */}
-             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-               {property.owner.fullName.charAt(0)}
-             </div>
-             {/* Text */}
-             <div className="min-w-0 flex-1">
-               <p className="text-[10px] font-semibold uppercase text-slate-400 tracking-wider">Owner</p>
-               <p className="truncate text-xs font-bold text-slate-900">{property.owner.fullName}</p>
-             </div>
+          {/* Title & Location Block */}
+          <div className="mb-4">
+            <h3 className="mb-1 truncate text-lg font-bold text-slate-900 leading-tight tracking-tight">
+              {property.title || `${property.propertyType} in ${property.city}`}
+            </h3>
+            <div className="flex items-start gap-1.5 text-sm font-medium text-slate-500">
+              <MapPinIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-slate-400" />
+              <span className="line-clamp-1">
+                {property.city}, {property.country}
+              </span>
+            </div>
           </div>
-        )}
 
-        {/* Action Buttons */}
-        <div className="mt-5 flex items-center justify-between gap-2 pt-4 border-t border-slate-100">
-           <div className="flex gap-1">
-              <button 
+          {/* Vertical Specs Grid */}
+          <div className="mb-5 grid grid-cols-2 gap-y-3 gap-x-2 border-t border-slate-100 pt-4">
+            {/* Guests */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Guests</span>
+              <span className="text-sm font-bold text-slate-900">{property.guests || 0}</span>
+            </div>
+            {/* Bedrooms */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Bedrooms</span>
+              <span className="text-sm font-bold text-slate-900">{property.bedrooms || 0}</span>
+            </div>
+            {/* Bathrooms */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Bathrooms</span>
+              <span className="text-sm font-bold text-slate-900">{property.bathrooms || 0}</span>
+            </div>
+            {/* Area */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase text-slate-400 tracking-wider">Area</span>
+              <span className="text-sm font-bold text-slate-900">{property.area || 0} sqft</span>
+            </div>
+          </div>
+
+          {/* Owner Block */}
+          {property.owner?.fullName && (
+            <div className="mb-auto mt-2 flex items-center gap-2.5 rounded-lg bg-slate-50 p-2.5">
+              {/* Initials Avatar */}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-violet-600 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+                {property.owner.fullName.charAt(0)}
+              </div>
+              {/* Text */}
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase text-slate-400 tracking-wider">Owner</p>
+                <p className="truncate text-xs font-bold text-slate-900">{property.owner.fullName}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="mt-5 flex items-center justify-between gap-2 pt-4 border-t border-slate-100">
+            <div className="flex gap-1">
+              <button
                 onClick={() => handleView(property)}
-                className="rounded-xl bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800" 
+                className="rounded-xl bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-800"
                 title="View Details"
               >
                 <EyeIcon className="h-4 w-4" />
               </button>
-           </div>
+            </div>
 
-           {property.status === "pending" && (
-             <div className="flex gap-2">
-                <button 
+            {property.status === "pending" && (
+              <div className="flex gap-2">
+                <button
                   onClick={() => handleRejectClick(property._id)}
                   disabled={actionInProgress}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                 >
-                  <XCircleIcon className="h-3.5 w-3.5" /> 
+                  <XCircleIcon className="h-3.5 w-3.5" />
                   Reject
                 </button>
-                <button 
+                <button
                   onClick={() => handleApprove(property._id)}
                   disabled={actionInProgress}
                   className="flex items-center gap-1.5 rounded-lg border border-slate-900 bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:bg-slate-800 hover:shadow-lg disabled:opacity-50"
@@ -613,20 +638,20 @@ const PropertyCard = ({ property }) => {
                   <CheckCircleIcon className="h-3.5 w-3.5" />
                   Approve
                 </button>
-             </div>
-           )}
-           
-           {property.status === "approved" && (
-             <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-               <CheckCircleIcon className="h-3.5 w-3.5" />
-               Approved
-             </span>
-           )}
+              </div>
+            )}
+
+            {property.status === "approved" && (
+              <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                <CheckCircleIcon className="h-3.5 w-3.5" />
+                Approved
+              </span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   const PropertyListItem = ({ property }) => {
     const PropertyIcon = getPropertyTypeIcon(property.propertyType);
@@ -637,9 +662,9 @@ const PropertyCard = ({ property }) => {
       <li className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] ring-1 ring-slate-100 transition-all hover:shadow-md sm:flex-row">
         <div className="relative h-48 w-full flex-shrink-0 bg-slate-100 sm:h-auto sm:w-56">
           {mainPhoto && !hasError ? (
-            <img 
-              src={mainPhoto} 
-              alt={property.title} 
+            <img
+              src={mainPhoto}
+              alt={property.title}
               className="h-full w-full object-cover"
               onError={() => setImageError(p => ({ ...p, [`list-${property._id}`]: true }))}
             />
@@ -652,7 +677,7 @@ const PropertyCard = ({ property }) => {
             <Badge status={property.status} />
           </div>
         </div>
-        
+
         <div className="flex flex-1 flex-col justify-between p-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div className="flex-1 min-w-0">
@@ -669,7 +694,7 @@ const PropertyCard = ({ property }) => {
                 <MapPinIcon className="h-4 w-4" />
                 <span>{[property.city, property.country].filter(Boolean).join(', ')}</span>
               </div>
-              
+
               <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4">
                 {property.guests && (
                   <div className="flex items-center gap-2">
@@ -705,20 +730,20 @@ const PropertyCard = ({ property }) => {
 
             <div className="flex items-center justify-end gap-2 mt-4 sm:mt-0">
               <Button variant="ghost" size="icon" onClick={() => handleView(property)}>
-                <EyeIcon className="h-5 w-5"/>
+                <EyeIcon className="h-5 w-5" />
               </Button>
               {property.status === "pending" && (
                 <>
                   <Button variant="successGhost" size="icon" onClick={() => handleApprove(property._id)} disabled={actionInProgress}>
-                    <CheckCircleIcon className="h-5 w-5"/>
+                    <CheckCircleIcon className="h-5 w-5" />
                   </Button>
                   <Button variant="dangerGhost" size="icon" onClick={() => handleRejectClick(property._id)} disabled={actionInProgress}>
-                    <XCircleIcon className="h-5 w-5"/>
+                    <XCircleIcon className="h-5 w-5" />
                   </Button>
                 </>
               )}
               <Button variant="dangerGhost" size="icon" onClick={() => handleDelete(property._id)}>
-                <TrashIcon className="h-5 w-5"/>
+                <TrashIcon className="h-5 w-5" />
               </Button>
             </div>
           </div>
@@ -758,34 +783,34 @@ const PropertyCard = ({ property }) => {
     <div className="min-h-screen bg-slate-50/50 p-4 sm:p-8 font-sans">
       <div className="mx-auto max-w-7xl space-y-8">
         {/* Header */}
-       
+
 
         {/* Stats Section */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard 
-            title="Pending Review" 
-            value={stats.pending} 
+          <StatCard
+            title="Pending Review"
+            value={stats.pending}
             colorClass="bg-amber-500"
             icon={ClockIcon}
             subtitle="Waiting for approval"
           />
-          <StatCard 
-            title="Approved" 
-            value={stats.approved} 
+          <StatCard
+            title="Approved"
+            value={stats.approved}
             colorClass="bg-emerald-500"
             icon={CheckCircleIcon}
             subtitle="Live properties"
           />
-          <StatCard 
-            title="Rejected" 
-            value={stats.rejected} 
+          <StatCard
+            title="Rejected"
+            value={stats.rejected}
             colorClass="bg-rose-500"
             icon={XCircleIcon}
             subtitle="Not approved"
           />
-          <StatCard 
-            title="Total" 
-            value={stats.total} 
+          <StatCard
+            title="Total"
+            value={stats.total}
             colorClass="bg-indigo-600"
             icon={HomeIcon}
             subtitle="All properties"
@@ -811,7 +836,7 @@ const PropertyCard = ({ property }) => {
                     onChange={(e) => setSearchText(e.target.value)}
                   />
                 </div>
-                
+
                 {/* Filters */}
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <select
@@ -824,7 +849,7 @@ const PropertyCard = ({ property }) => {
                       <option key={type} value={type}>{type}</option>
                     ))}
                   </select>
-                  
+
                   <select
                     className="flex-1 sm:flex-none block rounded-2xl border-slate-200 bg-white py-3 pl-4 pr-10 text-sm text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm"
                     value={activeTab}
@@ -841,10 +866,10 @@ const PropertyCard = ({ property }) => {
               {/* View Toggle */}
               <div className="flex items-center justify-end gap-3">
                 <div className="hidden sm:flex items-center bg-slate-100 rounded-2xl p-1">
-                  <button 
+                  <button
                     onClick={() => setActiveView("grid")}
                     className={cn(
-                      "p-2 rounded-xl transition-all", 
+                      "p-2 rounded-xl transition-all",
                       activeView === "grid" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                     )}
                   >
@@ -852,10 +877,10 @@ const PropertyCard = ({ property }) => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
                   </button>
-                  <button 
+                  <button
                     onClick={() => setActiveView("list")}
                     className={cn(
-                      "p-2 rounded-xl transition-all", 
+                      "p-2 rounded-xl transition-all",
                       activeView === "list" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                     )}
                   >
@@ -901,7 +926,7 @@ const PropertyCard = ({ property }) => {
           <div className="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setRejectModalOpen(false)}></div>
             <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
-            
+
             <div className="relative inline-block w-full max-w-lg transform overflow-hidden rounded-3xl bg-white text-left align-bottom shadow-2xl transition-all sm:my-8 sm:align-middle">
               <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
@@ -928,9 +953,9 @@ const PropertyCard = ({ property }) => {
                 </div>
               </div>
               <div className="bg-slate-50 px-4 py-4 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
-                <Button 
-                  variant="danger" 
-                  onClick={handleRejectConfirm} 
+                <Button
+                  variant="danger"
+                  onClick={handleRejectConfirm}
                   disabled={!rejectionReason.trim() || actionInProgress}
                 >
                   Reject Property
@@ -950,12 +975,12 @@ const PropertyCard = ({ property }) => {
           <div className="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-sm transition-opacity" onClick={() => setViewModalOpen(false)}></div>
             <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
-            
+
             <div className="relative inline-block w-full max-w-7xl transform overflow-hidden rounded-[2rem] bg-white text-left align-bottom shadow-2xl transition-all sm:my-8 sm:align-middle">
-              
+
               {/* Close Button */}
-              <button 
-                onClick={() => setViewModalOpen(false)} 
+              <button
+                onClick={() => setViewModalOpen(false)}
                 className="absolute top-6 right-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-white hover:bg-black/20 backdrop-blur-md transition-colors"
               >
                 <XMarkIcon className="h-6 w-6" />
@@ -963,14 +988,14 @@ const PropertyCard = ({ property }) => {
 
               {/* Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 max-h-[90vh] overflow-y-auto">
-                
+
                 {/* Left: Images & Details */}
                 <div className="lg:col-span-8 bg-slate-50">
                   {/* Gallery */}
                   <div className="relative h-80 lg:h-96 overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
                     {viewProperty.photos?.[0] ? (
-                      <img 
-                        src={viewProperty.photos[0]} 
+                      <img
+                        src={viewProperty.photos[0]}
                         alt={viewProperty.title}
                         className="h-full w-full object-cover"
                       />
@@ -1003,9 +1028,9 @@ const PropertyCard = ({ property }) => {
                       <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Property Photos</h4>
                       <div className="grid grid-cols-4 gap-3">
                         {viewProperty.photos.slice(1).map((photo, i) => (
-                          <img 
+                          <img
                             key={i}
-                            src={photo} 
+                            src={photo}
                             className="h-24 w-full rounded-xl object-cover shadow-sm border border-slate-200"
                             alt={`Property ${i + 1}`}
                           />
@@ -1129,20 +1154,20 @@ const PropertyCard = ({ property }) => {
                   <div className="space-y-3 pt-6 border-t border-slate-100">
                     {viewProperty.status === "pending" ? (
                       <>
-                        <Button 
-                          className="w-full" 
-                          size="lg" 
-                          icon={CheckCircleIcon} 
+                        <Button
+                          className="w-full"
+                          size="lg"
+                          icon={CheckCircleIcon}
                           onClick={() => { handleApprove(viewProperty._id); setViewModalOpen(false); }}
                           disabled={actionInProgress}
                         >
                           Approve Property
                         </Button>
-                        <Button 
-                          variant="dangerGhost" 
-                          className="w-full" 
-                          size="lg" 
-                          icon={XCircleIcon} 
+                        <Button
+                          variant="dangerGhost"
+                          className="w-full"
+                          size="lg"
+                          icon={XCircleIcon}
                           onClick={() => { handleRejectClick(viewProperty._id); setViewModalOpen(false); }}
                           disabled={actionInProgress}
                         >
@@ -1176,7 +1201,7 @@ const PropertyCard = ({ property }) => {
           <div className="flex min-h-screen items-center justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-sm transition-opacity" onClick={() => setDocumentModalOpen(false)}></div>
             <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
-            
+
             <div className="relative inline-block w-full max-w-4xl transform overflow-hidden rounded-3xl bg-white text-left align-bottom shadow-2xl transition-all sm:my-8 sm:align-middle">
               <div className="bg-white p-6">
                 <div className="flex items-center justify-between mb-6">
@@ -1187,19 +1212,19 @@ const PropertyCard = ({ property }) => {
                       <p className="text-sm text-slate-500">{viewDocument.type?.toUpperCase()} Document</p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setDocumentModalOpen(false)}
                     className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 transition-colors"
                   >
                     <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
-                
+
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                   {viewDocument.url ? (
-                    <iframe 
-                      src={viewDocument.url} 
-                      className="w-full h-[500px]" 
+                    <iframe
+                      src={viewDocument.url}
+                      className="w-full h-[500px]"
                       title={viewDocument.name}
                     />
                   ) : (
