@@ -105,11 +105,7 @@ const JobsTab = () => {
                 work_style: formData.work_style,
                 experience_level: formData.experience_level,
                 salary_range: formData.salary_range.min && formData.salary_range.max
-                    ? {
-                        min: Number(formData.salary_range.min),
-                        max: Number(formData.salary_range.max),
-                        currency: formData.salary_range.currency,
-                    }
+                    ? `${formData.salary_range.min} - ${formData.salary_range.max} ${formData.salary_range.currency}`
                     : null,
                 description: formData.description,
                 requirements: filterEmpty(formData.requirements),
@@ -362,11 +358,11 @@ const JobsTab = () => {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             >
                                                 <option value="">Select Type</option>
-                                                <option value="full-time">Full-time</option>
-                                                <option value="part-time">Part-time</option>
-                                                <option value="contract">Contract</option>
-                                                <option value="internship">Internship</option>
-                                                <option value="freelance">Freelance</option>
+                                                <option value="Full Time">Full Time</option>
+                                                <option value="Part Time">Part Time</option>
+                                                <option value="Contract">Contract</option>
+                                                <option value="C2C">C2C</option>
+                                                <option value="Contract to Hire">Contract to Hire</option>
                                             </select>
                                         </div>
 
@@ -385,7 +381,7 @@ const JobsTab = () => {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             >
                                                 <option value="">Select Style</option>
-                                                <option value="office">Office</option>
+                                                <option value="onsite">Onsite</option>
                                                 <option value="remote">Remote</option>
                                                 <option value="hybrid">Hybrid</option>
                                             </select>
