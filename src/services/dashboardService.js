@@ -105,4 +105,36 @@ export const dashboardAPI = {
 
     getCommunityMembershipActivity: () =>
         api.get("/communityanalytics/communities/memberships").then((r) => r.data),
+
+    // Career Analytics
+    getCareerJobsOverview: () =>
+        api.get("/carreranalytics/jobs/overview").then((r) => r.data),
+
+    getCareerApplicationsFunnel: () =>
+        api.get("/carreranalytics/applications/funnel").then((r) => r.data),
+
+    getCareerApplicationsTrend: (days = 30) =>
+        api.get(`/carreranalytics/applications/trend?days=${days}`).then((r) => r.data),
+
+    getCareerMostViewedJobs: () =>
+        api.get("/carreranalytics/jobs/top-viewed").then((r) => r.data),
+
+    getCareerAdminActions: () =>
+        api.get("/carreranalytics/admin/actions").then((r) => r.data),
+
+    // Users Analytics
+    getUsersOverview: () =>
+        api.get("/users/analytics/overview").then((r) => r.data),
+
+    getUserSignupTrend: (days = 30) =>
+        api.get(`/users/analytics/signup-trend?days=${days}`).then((r) => r.data),
+
+    getOtpFunnel: () =>
+        api.get("/users/analytics/otp-funnel").then((r) => r.data),
+
+    getDailyActiveUsers: (days = 30) =>
+        api.get(`/users/analytics/daily-active?days=${days}`).then((r) => r.data),
+
+    getUsersByCountry: () =>
+        api.get("/users/analytics/by-country").then((r) => r.data),
 };

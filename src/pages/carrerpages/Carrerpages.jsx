@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-    LayoutDashboard,
     Briefcase,
     FileText,
     Send,
@@ -15,9 +14,7 @@ import {
     MoreHorizontal,
 } from 'lucide-react';
 
-// Import the 4 separate tab components
-// Ensure these paths match where you saved the files from the previous step
-import DashboardTab from '../carrerpages/Dashboardpage';
+// Import the remaining 3 tab components
 import JobsTab from '../carrerpages/Jobposting';
 import ApplicationsTab from '../carrerpages/Applicationpage';
 import OffersTab from '../carrerpages/Offerspage';
@@ -30,26 +27,18 @@ const applications = [];
 
 const offers = [];
 
-const stats = [];
-
 // --- MAIN COMPONENT ---
 
 function CareerPages() {
-    const [activeTab, setActiveTab] = useState('dashboard');
+    // Set default state to 'jobs' so it opens on the Jobs page
+    const [activeTab, setActiveTab] = useState('jobs');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
     // Render the specific tab component based on activeTab state
     const renderPage = () => {
         switch (activeTab) {
-            case 'dashboard':
-                return (
-                    <DashboardTab
-                        stats={stats}
-                        applications={applications}
-                        offers={offers}
-                    />
-                );
+            // Dashboard case removed
             case 'jobs':
                 return (
                     <JobsTab
@@ -100,27 +89,19 @@ function CareerPages() {
                                 <p className="text-sm text-gray-500 mt-1">Recruitment & Hiring Portal</p>
                             </div>
                         </div>
-                       
+
                     </div>
                 </div>
             </div>
 
             {/* Main Content Area */}
             <div className="max-w-8xl mx-auto px-4 py-6">
-                {/* Tab Navigation with Rounded Bar (Matching BuySell Style) */}
+                {/* Tab Navigation with Rounded Bar */}
                 <div className="mb-6">
                     <div className="bg-white rounded-full p-1 flex justify-center shadow-sm">
                         <div className="bg-white rounded-full p-1 flex space-x-3">
-                            <button
-                                onClick={() => setActiveTab('dashboard')}
-                                className={`px-6 py-2 text-sm font-semibold rounded-full transition-all duration-300 transform hover:scale-105 flex items-center ${activeTab === 'dashboard'
-                                    ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
-                                    : 'text-gray-600 hover:bg-gray-100'
-                                    }`}
-                            >
-                                <LayoutDashboard className="w-4 h-4 mr-2" />
-                                Dashboard
-                            </button>
+
+                            {/* Dashboard Button Removed */}
 
                             <button
                                 onClick={() => setActiveTab('jobs')}

@@ -8,7 +8,15 @@ import {
     ShoppingBag,
     Plane,
     Shuffle,
-    Users
+    Users,
+    Briefcase,
+    Eye,
+    RefreshCw,
+    FileCheck,
+    LogIn,
+    Shield,
+    Globe,
+    Activity
 } from "lucide-react";
 
 export const getHostStats = (analyticsSummary) => {
@@ -472,5 +480,232 @@ export const getCommunityRatioData = (communityRatio) => {
     return {
         labels: ["Approved", "Rejected"],
         values: [approved, rejected],
+    };
+};
+
+/* =====================================================
+   📊 CAREER ANALYTICS UTILITIES
+===================================================== */
+
+export const getCareerJobsStats = (careerJobsOverview) => {
+    if (!careerJobsOverview?.stats) return [];
+
+    let created = 0;
+    let viewed = 0;
+    let statusChanged = 0;
+
+    careerJobsOverview.stats.forEach((s) => {
+        if (s.event_type === "JOB_CREATED") created = parseInt(s.total || 0, 10);
+        else if (s.event_type === "JOB_VIEWED") viewed = parseInt(s.total || 0, 10);
+        else if (s.event_type === "JOB_STATUS_CHANGED") statusChanged = parseInt(s.total || 0, 10);
+    });
+
+    return [
+        {
+            title: "Jobs Created",
+            value: created,
+            icon: Briefcase,
+            bgColor: "bg-blue-50",
+            textColor: "text-blue-600",
+        },
+        {
+            title: "Jobs Viewed",
+            value: viewed,
+            icon: Eye,
+            bgColor: "bg-purple-50",
+            textColor: "text-purple-600",
+        },
+        {
+            title: "Status Changes",
+            value: statusChanged,
+            icon: RefreshCw,
+            bgColor: "bg-yellow-50",
+            textColor: "text-yellow-600",
+        },
+    ];
+};
+
+export const getCareerFunnelData = (careerApplicationsFunnel) => {
+    if (!careerApplicationsFunnel?.funnel) return { labels: [], values: [] };
+
+    const funnel = careerApplicationsFunnel.funnel;
+
+    return {
+        labels: funnel.map(item => item.status || "Unknown"),
+        values: funnel.map(item => parseInt(item.total || 0, 10)),
+    };
+};
+
+export const getCareerTrendData = (careerApplicationsTrend) => {
+    if (!careerApplicationsTrend?.trend) return { labels: [], datasets: [] };
+
+    const trend = careerApplicationsTrend.trend;
+
+    return {
+        labels: trend.map(item => item.date),
+        datasets: [
+            {
+                label: "Applications",
+                data: trend.map(item => parseInt(item.count || 0, 10)),
+                borderColor: "#3B82F6",
+                backgroundColor: "rgba(59, 130, 246, 0.1)",
+            },
+        ],
+    };
+};
+
+export const getCareerAdminActionsStats = (careerAdminActions) => {
+    if (!careerAdminActions?.stats) return [];
+
+    let jobCreated = 0;
+    let jobStatusChanged = 0;
+    let appStatusChanged = 0;
+    let userNotified = 0;
+
+    careerAdminActions.stats.forEach((s) => {
+        if (s.event_type === "JOB_CREATED") jobCreated = parseInt(s.total || 0, 10);
+        else if (s.event_type === "JOB_STATUS_CHANGED") jobStatusChanged = parseInt(s.total || 0, 10);
+        else if (s.event_type === "APPLICATION_STATUS_CHANGED") appStatusChanged = parseInt(s.total || 0, 10);
+        else if (s.event_type === "APPLICATION_USER_NOTIFIED") userNotified = parseInt(s.total || 0, 10);
+    });
+
+    return [
+        {
+            title: "Jobs Created",
+            value: jobCreated,
+            icon: Briefcase,
+            bgColor: "bg-blue-50",
+            textColor: "text-blue-600",
+        },
+        {
+            title: "Job Status Changes",
+            value: jobStatusChanged,
+            icon: RefreshCw,
+            bgColor: "bg-yellow-50",
+            textColor: "text-yellow-600",
+        },
+        {
+            title: "App Status Changes",
+            value: appStatusChanged,
+            icon: FileCheck,
+            bgColor: "bg-green-50",
+            textColor: "text-green-600",
+        },
+        {
+            title: "Users Notified",
+            value: userNotified,
+            icon: Send,
+            bgColor: "bg-purple-50",
+            textColor: "text-purple-600",
+        },
+    ];
+};
+
+/* =====================================================
+   👤 USER ANALYTICS UTILITIES
+===================================================== */
+
+export const getUsersOverviewStats = (usersOverview) => {
+    if (!usersOverview?.stats) return [];
+
+    let registered = 0;
+    let verified = 0;
+    let logins = 0;
+
+    usersOverview.stats.forEach((s) => {
+        if (s.event_type === "USER_REGISTERED") registered = parseInt(s.total || 0, 10);
+        else if (s.event_type === "OTP_VERIFIED") verified = parseInt(s.total || 0, 10);
+        else if (s.event_type === "USER_LOGIN") logins = parseInt(s.total || 0, 10);
+    });
+
+    return [
+        {
+            title: "Users Registered",
+            value: registered,
+            icon: User,
+            bgColor: "bg-blue-50",
+            textColor: "text-blue-600",
+        },
+        {
+            title: "OTP Verified",
+            value: verified,
+            icon: Shield,
+            bgColor: "bg-green-50",
+            textColor: "text-green-600",
+        },
+        {
+            title: "User Logins",
+            value: logins,
+            icon: LogIn,
+            bgColor: "bg-purple-50",
+            textColor: "text-purple-600",
+        },
+    ];
+};
+
+export const getUserSignupTrendData = (signupTrend) => {
+    if (!signupTrend?.trend) return { labels: [], datasets: [] };
+
+    const trend = signupTrend.trend;
+
+    return {
+        labels: trend.map(item => item.date),
+        datasets: [
+            {
+                label: "Signups",
+                data: trend.map(item => parseInt(item.count || 0, 10)),
+                borderColor: "#3B82F6",
+                backgroundColor: "rgba(59, 130, 246, 0.1)",
+            },
+        ],
+    };
+};
+
+export const getOtpFunnelData = (otpFunnel) => {
+    if (!otpFunnel?.funnel) return { labels: [], values: [] };
+
+    let sent = 0;
+    let verified = 0;
+    let failed = 0;
+
+    otpFunnel.funnel.forEach((s) => {
+        if (s.event_type === "OTP_SENT") sent = parseInt(s.total || 0, 10);
+        else if (s.event_type === "OTP_VERIFIED") verified = parseInt(s.total || 0, 10);
+        else if (s.event_type === "OTP_VERIFICATION_FAILED") failed = parseInt(s.total || 0, 10);
+    });
+
+    return {
+        labels: ["OTP Sent", "OTP Verified", "OTP Failed"],
+        values: [sent, verified, failed],
+    };
+};
+
+export const getDailyActiveUsersData = (dauData) => {
+    if (!dauData?.data) return { labels: [], datasets: [] };
+
+    const data = dauData.data;
+
+    return {
+        labels: data.map(item => item.date),
+        datasets: [
+            {
+                label: "Active Users",
+                data: data.map(item => parseInt(item.active_users || 0, 10)),
+                borderColor: "#10B981",
+                backgroundColor: "rgba(16, 185, 129, 0.1)",
+            },
+        ],
+    };
+};
+
+export const getUsersByCountryData = (countryData) => {
+    if (!countryData?.data) return { labels: [], values: [] };
+
+    const sorted = [...countryData.data].sort((a, b) => parseInt(b.total) - parseInt(a.total));
+    const top10 = sorted.slice(0, 10);
+
+    return {
+        labels: top10.map(i => i.country || "Unknown"),
+        values: top10.map(i => parseInt(i.total || 0, 10)),
     };
 };

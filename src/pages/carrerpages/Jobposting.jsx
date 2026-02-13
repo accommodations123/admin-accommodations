@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import {
     PlusIcon,
     XMarkIcon,
-    ClockIcon,
     CheckCircleIcon,
     XCircleIcon,
-    TrashIcon,
+    ChevronDownIcon,
+    ChevronUpIcon,
 } from "@heroicons/react/24/outline";
 
 /* =====================================================
@@ -58,17 +58,17 @@ const JobsTab = () => {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("basic");
 
+    // State to manage which groups are expanded/collapsed
+    const [expandedGroups, setExpandedGroups] = useState({});
+
     const [formData, setFormData] = useState(initialFormData);
 
     /* =====================================================
-       FETCH JOBS (GET) - Persists on Refresh
+       FETCH JOBS (GET)
     ===================================================== */
     const fetchJobs = async () => {
         try {
-            // Assuming a GET route exists at the same endpoint or similar
             const res = await api.get("/carrer/admin/jobs");
-
-            // Handle response based on structure (usually { jobs: [...] } or just [...])
             if (res.data.success && res.data.jobs) {
                 setJobsData(res.data.jobs);
             } else if (Array.isArray(res.data)) {
@@ -79,19 +79,39 @@ const JobsTab = () => {
         }
     };
 
-    // Load jobs when component mounts
     useEffect(() => {
         fetchJobs();
     }, []);
 
     /* =====================================================
-       CREATE JOB (POST → DRAFT)
+       GROUPING LOGIC (Alphabetical & Counted)
+    ===================================================== */
+    // We use useMemo so this only runs when jobsData changes
+    const groupedJobs = useMemo(() => {
+        // 1. Group by Title
+        const groups = jobsData.reduce((acc, job) => {
+            // Fallback to "Untitled" if title is missing
+            const title = job.title?.trim() || "Untitled";
+            if (!acc[title]) {
+                acc[title] = [];
+            }
+            acc[title].push(job);
+            return acc;
+        }, {});
+
+        // 2. Sort Keys Alphabetically
+        const sortedKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+        // Return object with sorted keys ready for mapping
+        return { groups, sortedKeys };
+    }, [jobsData]);
+
+    /* =====================================================
+       CREATE JOB (POST)
     ===================================================== */
     const handleCreateJob = async () => {
         try {
             setLoading(true);
-
-            // Filter out empty items from arrays
             const filterEmpty = (arr) => arr.filter((item) => item.trim() !== "");
 
             const payload = {
@@ -104,9 +124,10 @@ const JobsTab = () => {
                 contract_duration: formData.contract_duration || null,
                 work_style: formData.work_style,
                 experience_level: formData.experience_level,
-                salary_range: formData.salary_range.min && formData.salary_range.max
-                    ? `${formData.salary_range.min} - ${formData.salary_range.max} ${formData.salary_range.currency}`
-                    : null,
+                salary_range:
+                    formData.salary_range.min && formData.salary_range.max
+                        ? `${formData.salary_range.min} - ${formData.salary_range.max} ${formData.salary_range.currency}`
+                        : null,
                 description: formData.description,
                 requirements: filterEmpty(formData.requirements),
                 responsibilities: filterEmpty(formData.responsibilities),
@@ -119,7 +140,6 @@ const JobsTab = () => {
             };
 
             const res = await api.post("/carrer/admin/jobs", payload);
-
             const job = res.data.job;
 
             if (!job?.id) {
@@ -127,10 +147,7 @@ const JobsTab = () => {
                 return;
             }
 
-            // Add new job to the top of the list
             setJobsData((prev) => [job, ...prev]);
-
-            // Close and Reset
             setShowJobModal(false);
             setFormData(initialFormData);
         } catch (err) {
@@ -141,7 +158,7 @@ const JobsTab = () => {
     };
 
     /* =====================================================
-       UPDATE STATUS (PATCH) - Matches Backend Route
+       UPDATE STATUS (PATCH)
     ===================================================== */
     const updateJobStatus = async (jobId, status) => {
         if (!jobId) {
@@ -150,25 +167,19 @@ const JobsTab = () => {
         }
 
         try {
-            // URL matches: router.patch("/carrer/admin/jobs/:id/status", ...)
-            const res = await api.patch(
-                `/carrer/admin/jobs/${jobId}/status`,
-                { status }
-            );
+            const res = await api.patch(`/carrer/admin/jobs/${jobId}/status`, {
+                status,
+            });
 
             const updatedJob = res.data.job;
 
-            // Optimistic UI update or update based on server response
             setJobsData((prev) =>
                 prev.map((job) =>
                     job.id === jobId ? { ...job, status: updatedJob.status } : job
                 )
             );
         } catch (err) {
-            console.error(
-                "UPDATE STATUS ERROR",
-                err.response?.data || err.message
-            );
+            console.error("UPDATE STATUS ERROR", err.response?.data || err.message);
         }
     };
 
@@ -179,20 +190,20 @@ const JobsTab = () => {
         if (status === "active") {
             return (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <CheckCircleIcon className="h-4 w-4 mr-1" /> Active
+                    <CheckCircleIcon className="h-3 w-3 mr-1" /> Active
                 </span>
             );
         }
         if (status === "closed") {
             return (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    <XCircleIcon className="h-4 w-4 mr-1" /> Closed
+                    <XCircleIcon className="h-3 w-3 mr-1" /> Closed
                 </span>
             );
         }
         return (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                <ClockIcon className="h-4 w-4 mr-1" /> Draft
+                Draft
             </span>
         );
     };
@@ -204,7 +215,12 @@ const JobsTab = () => {
         <div>
             {/* HEADER */}
             <div className="mb-6 flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Job Postings</h2>
+                <div>
+                    <h2 className="text-2xl font-bold">Job Directory</h2>
+                    <p className="text-sm text-gray-500">
+                        Total Unique Roles: {groupedJobs.sortedKeys.length} | Total Jobs: {jobsData.length}
+                    </p>
+                </div>
                 <button
                     onClick={() => setShowJobModal(true)}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center hover:bg-blue-700 transition"
@@ -213,70 +229,117 @@ const JobsTab = () => {
                 </button>
             </div>
 
-            {/* JOB TABLE */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Title
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {jobsData.map((job) => (
-                            <tr key={job.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 font-medium text-gray-900">{job.title}</td>
-                                <td className="px-6 py-4">{statusBadge(job.status)}</td>
-                                <td className="px-6 py-4 flex gap-2">
-                                    {/* If Draft -> Show Activate Button */}
-                                    {job.status === "draft" && (
-                                        <button
-                                            onClick={() =>
-                                                updateJobStatus(job.id, "active")
-                                            }
-                                            className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-green-700 transition"
-                                        >
-                                            Activate
-                                        </button>
-                                    )}
+            {/* ALPHABETICAL GROUPS LIST */}
+            <div className="space-y-6">
+                {jobsData.length === 0 ? (
+                    <div className="text-center py-10 text-gray-500 bg-white rounded-lg shadow">
+                        No jobs found.
+                    </div>
+                ) : (
+                    groupedJobs.sortedKeys.map((title) => {
+                        const jobsInGroup = groupedJobs.groups[title];
+                        const isExpanded = expandedGroups[title] !== false; // Default to expanded
 
-                                    {/* If Active -> Show Close Button */}
-                                    {job.status === "active" && (
-                                        <button
-                                            onClick={() =>
-                                                updateJobStatus(job.id, "closed")
-                                            }
-                                            className="bg-red-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-red-700 transition"
-                                        >
-                                            Close
-                                        </button>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-
-                        {jobsData.length === 0 && (
-                            <tr>
-                                <td
-                                    colSpan="3"
-                                    className="px-6 py-10 text-center text-gray-500"
+                        return (
+                            <div key={title} className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
+                                {/* GROUP HEADER (Clickable) */}
+                                <div
+                                    onClick={() =>
+                                        setExpandedGroups((prev) => ({
+                                            ...prev,
+                                            [title]: !prev[title],
+                                        }))
+                                    }
+                                    className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition"
                                 >
-                                    No jobs found. Create a new job to get started.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-lg text-gray-800">
+                                            {title}
+                                        </span>
+                                        <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                                            {jobsInGroup.length} Jobs
+                                        </span>
+                                    </div>
+                                    <button className="text-gray-500">
+                                        {isExpanded ? (
+                                            <ChevronUpIcon className="h-5 w-5" />
+                                        ) : (
+                                            <ChevronDownIcon className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* GROUP CONTENT (The Jobs) */}
+                                {isExpanded && (
+                                    <div className="divide-y divide-gray-100">
+                                        {jobsInGroup.map((job) => (
+                                            <div
+                                                key={job.id}
+                                                className="px-6 py-3 flex flex-col md:flex-row md:items-center justify-between hover:bg-blue-50 transition gap-4"
+                                            >
+                                                {/* Left Side: Details */}
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="text-sm font-medium text-gray-900">
+                                                            {job.company || "Unknown Company"}
+                                                        </span>
+                                                        {statusBadge(job.status)}
+                                                    </div>
+
+                                                    {/* Tags Row */}
+                                                    <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                                                        {job.location && (
+                                                            <span className="flex items-center gap-1">
+                                                                📍 {job.location}
+                                                            </span>
+                                                        )}
+                                                        {job.employment_type && (
+                                                            <span className="bg-gray-100 px-2 py-0.5 rounded">
+                                                                {job.employment_type}
+                                                            </span>
+                                                        )}
+                                                        {job.work_style && (
+                                                            <span className="bg-gray-100 px-2 py-0.5 rounded capitalize">
+                                                                {job.work_style}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Right Side: Actions */}
+                                                <div className="flex items-center gap-3">
+                                                    {job.status === "draft" && (
+                                                        <button
+                                                            onClick={() =>
+                                                                updateJobStatus(job.id, "active")
+                                                            }
+                                                            className="text-sm bg-green-600 text-white px-3 py-1.5 rounded shadow-sm hover:bg-green-700 transition"
+                                                        >
+                                                            Activate
+                                                        </button>
+                                                    )}
+                                                    {job.status === "active" && (
+                                                        <button
+                                                            onClick={() =>
+                                                                updateJobStatus(job.id, "closed")
+                                                            }
+                                                            className="text-sm bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded shadow-sm hover:bg-red-100 transition"
+                                                        >
+                                                            Close
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                )}
             </div>
 
-            {/* CREATE JOB MODAL */}
+            {/* CREATE JOB MODAL (Same as before, abbreviated here for brevity, but fully included below) */}
             {showJobModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
                     <div className="bg-white rounded-xl w-full max-w-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto mx-4">
@@ -305,8 +368,8 @@ const JobsTab = () => {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`px-4 py-2 font-medium text-sm transition ${activeTab === tab.id
-                                        ? "text-blue-600 border-b-2 border-blue-600"
-                                        : "text-gray-500 hover:text-gray-700"
+                                            ? "text-blue-600 border-b-2 border-blue-600"
+                                            : "text-gray-500 hover:text-gray-700"
                                         }`}
                                 >
                                     {tab.label}
@@ -319,33 +382,36 @@ const JobsTab = () => {
                             {/* BASIC INFO TAB */}
                             {activeTab === "basic" && (
                                 <>
-                                    {["title", "company", "department", "location", "geo_restriction"].map((key) => (
-                                        <div key={key}>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                                                {key.replace(/_/g, " ")}
-                                                {["title", "company", "department", "location"].includes(key) && (
-                                                    <span className="text-red-500 ml-1">*</span>
-                                                )}
-                                            </label>
-                                            <input
-                                                value={formData[key]}
-                                                onChange={(e) =>
-                                                    setFormData({ ...formData, [key]: e.target.value })
-                                                }
-                                                placeholder={
-                                                    key === "geo_restriction"
-                                                        ? "e.g., US Only, EU, Global"
-                                                        : `Enter ${key.replace(/_/g, " ")}`
-                                                }
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            />
-                                        </div>
-                                    ))}
+                                    {["title", "company", "department", "location", "geo_restriction"].map(
+                                        (key) => (
+                                            <div key={key}>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                                                    {key.replace(/_/g, " ")}
+                                                    {["title", "company", "department", "location"].includes(
+                                                        key
+                                                    ) && <span className="text-red-500 ml-1">*</span>}
+                                                </label>
+                                                <input
+                                                    value={formData[key]}
+                                                    onChange={(e) =>
+                                                        setFormData({ ...formData, [key]: e.target.value })
+                                                    }
+                                                    placeholder={
+                                                        key === "geo_restriction"
+                                                            ? "e.g., US Only, EU, Global"
+                                                            : `Enter ${key.replace(/_/g, " ")}`
+                                                    }
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                        )
+                                    )}
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Employment Type<span className="text-red-500 ml-1">*</span>
+                                                Employment Type
+                                                <span className="text-red-500 ml-1">*</span>
                                             </label>
                                             <select
                                                 value={formData.employment_type}
@@ -362,7 +428,9 @@ const JobsTab = () => {
                                                 <option value="Part Time">Part Time</option>
                                                 <option value="Contract">Contract</option>
                                                 <option value="C2C">C2C</option>
-                                                <option value="Contract to Hire">Contract to Hire</option>
+                                                <option value="Contract to Hire">
+                                                    Contract to Hire
+                                                </option>
                                             </select>
                                         </div>
 
@@ -391,7 +459,8 @@ const JobsTab = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Experience Level<span className="text-red-500 ml-1">*</span>
+                                                Experience Level
+                                                <span className="text-red-500 ml-1">*</span>
                                             </label>
                                             <input
                                                 value={formData.experience_level}
@@ -582,9 +651,10 @@ const JobsTab = () => {
                                                         onClick={() => {
                                                             setFormData({
                                                                 ...formData,
-                                                                responsibilities: formData.responsibilities.filter(
-                                                                    (_, i) => i !== idx
-                                                                ),
+                                                                responsibilities:
+                                                                    formData.responsibilities.filter(
+                                                                        (_, i) => i !== idx
+                                                                    ),
                                                             });
                                                         }}
                                                         className="text-red-500 hover:text-red-700 p-2"
@@ -615,7 +685,8 @@ const JobsTab = () => {
                                     {/* Primary Skills */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Primary Skills <span className="text-gray-400 text-xs">(Must have)</span>
+                                            Primary Skills{" "}
+                                            <span className="text-gray-400 text-xs">(Must have)</span>
                                         </label>
                                         {formData.skills.primary.map((skill, idx) => (
                                             <div key={idx} className="flex gap-2 mb-2">
@@ -671,7 +742,8 @@ const JobsTab = () => {
                                     {/* Secondary Skills */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Secondary Skills <span className="text-gray-400 text-xs">(Good to have)</span>
+                                            Secondary Skills{" "}
+                                            <span className="text-gray-400 text-xs">(Good to have)</span>
                                         </label>
                                         {formData.skills.secondary.map((skill, idx) => (
                                             <div key={idx} className="flex gap-2 mb-2">
@@ -682,7 +754,10 @@ const JobsTab = () => {
                                                         updated[idx] = e.target.value;
                                                         setFormData({
                                                             ...formData,
-                                                            skills: { ...formData.skills, secondary: updated },
+                                                            skills: {
+                                                                ...formData.skills,
+                                                                secondary: updated,
+                                                            },
                                                         });
                                                     }}
                                                     placeholder={`Secondary skill ${idx + 1}`}
@@ -727,7 +802,8 @@ const JobsTab = () => {
                                     {/* Nice to Have Skills */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Nice to Have <span className="text-gray-400 text-xs">(Bonus)</span>
+                                            Nice to Have{" "}
+                                            <span className="text-gray-400 text-xs">(Bonus)</span>
                                         </label>
                                         {formData.skills.nice_to_have.map((skill, idx) => (
                                             <div key={idx} className="flex gap-2 mb-2">
@@ -738,7 +814,10 @@ const JobsTab = () => {
                                                         updated[idx] = e.target.value;
                                                         setFormData({
                                                             ...formData,
-                                                            skills: { ...formData.skills, nice_to_have: updated },
+                                                            skills: {
+                                                                ...formData.skills,
+                                                                nice_to_have: updated,
+                                                            },
                                                         });
                                                     }}
                                                     placeholder={`Nice to have ${idx + 1}`}
@@ -751,9 +830,10 @@ const JobsTab = () => {
                                                                 ...formData,
                                                                 skills: {
                                                                     ...formData.skills,
-                                                                    nice_to_have: formData.skills.nice_to_have.filter(
-                                                                        (_, i) => i !== idx
-                                                                    ),
+                                                                    nice_to_have:
+                                                                        formData.skills.nice_to_have.filter(
+                                                                            (_, i) => i !== idx
+                                                                        ),
                                                                 },
                                                             });
                                                         }}
@@ -770,7 +850,10 @@ const JobsTab = () => {
                                                     ...formData,
                                                     skills: {
                                                         ...formData.skills,
-                                                        nice_to_have: [...formData.skills.nice_to_have, ""],
+                                                        nice_to_have: [
+                                                            ...formData.skills.nice_to_have,
+                                                            "",
+                                                        ],
                                                     },
                                                 })
                                             }
@@ -811,9 +894,10 @@ const JobsTab = () => {
                                                     onClick={() => {
                                                         setFormData({
                                                             ...formData,
-                                                            mandatory_conditions: formData.mandatory_conditions.filter(
-                                                                (_, i) => i !== idx
-                                                            ),
+                                                            mandatory_conditions:
+                                                                formData.mandatory_conditions.filter(
+                                                                    (_, i) => i !== idx
+                                                                ),
                                                         });
                                                     }}
                                                     className="text-red-500 hover:text-red-700 p-2"
@@ -827,7 +911,10 @@ const JobsTab = () => {
                                         onClick={() =>
                                             setFormData({
                                                 ...formData,
-                                                mandatory_conditions: [...formData.mandatory_conditions, ""],
+                                                mandatory_conditions: [
+                                                    ...formData.mandatory_conditions,
+                                                    "",
+                                                ],
                                             })
                                         }
                                         className="text-blue-600 text-sm hover:text-blue-800 flex items-center gap-1"

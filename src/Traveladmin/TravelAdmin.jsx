@@ -88,13 +88,6 @@ export default function TravelAdmin() {
     message: ''
   });
 
-  const [stats, setStats] = useState({
-    totalTrips: 0,
-    activeTrips: 0,
-    completedTrips: 0,
-    totalMatches: 0,
-  });
-
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   /* =====================
@@ -146,6 +139,13 @@ export default function TravelAdmin() {
     }
   };
 
+  const [stats, setStats] = useState({
+    totalTrips: 0,
+    activeTrips: 0,
+    completedTrips: 0,
+    totalMatches: 0,
+  });
+
   useEffect(() => {
     fetchAll();
   }, []);
@@ -167,7 +167,6 @@ export default function TravelAdmin() {
         setSnackbar({ open: true, message: successMsg, severity: 'success' });
         fetchAll(); // Refresh to see cascading updates (e.g. cancelled matches)
       } else {
-        // Handle specific errors from backend (e.g. "Trip already cancelled")
         throw new Error(json.message || 'Action failed');
       }
     } catch (err) {
@@ -206,17 +205,41 @@ export default function TravelAdmin() {
   };
 
   /* =====================
-     SEARCH FILTER
+     SEARCH & FILTER LOGIC
   ===================== */
+
+  // 1. Filter Trips based on Search + Status Filter + Tab Value
   const filteredTrips = useMemo(() => {
     return trips.filter((t) => {
       const text =
         `${t.from_city} ${t.to_city} ${t.airline} ${t.host?.full_name}`.toLowerCase();
       const matchesSearch = text.includes(search.toLowerCase());
-      const matchesStatus = statusFilter === "all" || t.status === statusFilter;
+
+      // Logic: If specific tabs are selected, they override the dropdown filter
+      let matchesStatus = true;
+      if (tabValue === 1) { // Active Tab
+        matchesStatus = t.status === 'active';
+      } else if (tabValue === 2) { // Completed Tab
+        matchesStatus = t.status === 'completed';
+      } else { // All Trips Tab (or default)
+        matchesStatus = statusFilter === "all" || t.status === statusFilter;
+      }
+
       return matchesSearch && matchesStatus;
     });
-  }, [trips, search, statusFilter]);
+  }, [trips, search, statusFilter, tabValue]);
+
+  // 2. Filter Matches based on Search (searching via linked Trip info)
+  const filteredMatches = useMemo(() => {
+    return matches.filter((m) => {
+      // Find the trip associated with this match to enable searching
+      const trip = trips.find(t => t.id === m.trip_id);
+      if (!trip) return false;
+
+      const text = `${trip.from_city} ${trip.to_city} ${trip.airline}`.toLowerCase();
+      return text.includes(search.toLowerCase());
+    });
+  }, [matches, trips, search]);
 
   const matchCountByTrip = useMemo(() => {
     const map = {};
@@ -228,6 +251,8 @@ export default function TravelAdmin() {
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
+    // Optional: Reset search or filter when changing tabs
+    // setSearch(''); 
   };
 
   const handleSnackbarClose = () => {
@@ -272,7 +297,7 @@ export default function TravelAdmin() {
                   <Search sx={{ fontSize: 18, color: '#888' }} />
                   <InputBase
                     sx={{ ml: 1, flex: 1 }}
-                    placeholder="Search by city, airline, traveler..."
+                    placeholder={tabValue === 3 ? "Search matches by route or airline..." : "Search by city, airline, traveler..."}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -284,65 +309,155 @@ export default function TravelAdmin() {
                 </Paper>
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <Stack direction="row" spacing={2} justifyContent="flex-end">
-                  <FormControl variant="outlined" size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel id="status-filter-label">Status</InputLabel>
-                    <Select
-                      labelId="status-filter-label"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      label="Status"
-                      startAdornment={<FilterList sx={{ fontSize: 16, mr: 1 }} />}
+              {/* Only show Status Filter for Trip tabs, not Matches tab */}
+              {tabValue !== 3 && (
+                <Grid item xs={12} md={6}>
+                  <Stack direction="row" spacing={2} justifyContent="flex-end">
+                    <FormControl variant="outlined" size="small" sx={{ minWidth: 150 }} disabled={tabValue === 1 || tabValue === 2}>
+                      <InputLabel id="status-filter-label">Status</InputLabel>
+                      <Select
+                        labelId="status-filter-label"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        label="Status"
+                        startAdornment={<FilterList sx={{ fontSize: 16, mr: 1 }} />}
+                      >
+                        <MenuItem value="all">All Status</MenuItem>
+                        <MenuItem value="active">Active</MenuItem>
+                        <MenuItem value="completed">Completed</MenuItem>
+                        <MenuItem value="cancelled">Cancelled</MenuItem>
+                        <MenuItem value="pending">Pending</MenuItem>
+                      </Select>
+                    </FormControl>
+                    <Button
+                      startIcon={<Refresh />}
+                      variant="outlined"
+                      onClick={fetchAll}
+                      sx={{ borderRadius: 2 }}
                     >
-                      <MenuItem value="all">All Status</MenuItem>
-                      <MenuItem value="active">Active</MenuItem>
-                      <MenuItem value="completed">Completed</MenuItem>
-                      <MenuItem value="cancelled">Cancelled</MenuItem>
-                      <MenuItem value="pending">Pending</MenuItem>
-                    </Select>
-                  </FormControl>
-                  <Button
-                    startIcon={<Refresh />}
-                    variant="outlined"
-                    onClick={fetchAll}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    Refresh
-                  </Button>
-                </Stack>
-              </Grid>
+                      Refresh
+                    </Button>
+                  </Stack>
+                </Grid>
+              )}
+
+              {tabValue === 3 && (
+                <Grid item xs={12} md={6}>
+                  <Stack direction="row" spacing={2} justifyContent="flex-end">
+                    <Button
+                      startIcon={<Refresh />}
+                      variant="outlined"
+                      onClick={fetchAll}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Refresh
+                    </Button>
+                  </Stack>
+                </Grid>
+              )}
             </Grid>
 
             {/* ================= TABLE ================= */}
             <TableContainer>
               <Table>
+                {/* HEADERS */}
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Traveler</TableCell>
-                    <TableCell>Route</TableCell>
-                    <TableCell>Flight</TableCell>
-                    <TableCell>Departure</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Matches</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
+                  {tabValue === 3 ? (
+                    // MATCHES TABLE HEADERS
+                    <TableRow>
+                      <TableCell>Match ID</TableCell>
+                      <TableCell>Trip Route</TableCell>
+                      <TableCell>Flight</TableCell>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  ) : (
+                    // TRIPS TABLE HEADERS
+                    <TableRow>
+                      <TableCell>Traveler</TableCell>
+                      <TableCell>Route</TableCell>
+                      <TableCell>Flight</TableCell>
+                      <TableCell>Departure</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Matches</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  )}
                 </TableHead>
 
                 <TableBody>
                   {loading ? (
                     Array.from({ length: 5 }).map((_, index) => (
                       <TableRow key={index}>
+                        {/* Render skeletons based on column count to keep alignment roughly */}
                         <TableCell><Skeleton animation="wave" /></TableCell>
                         <TableCell><Skeleton animation="wave" /></TableCell>
                         <TableCell><Skeleton animation="wave" /></TableCell>
                         <TableCell><Skeleton animation="wave" /></TableCell>
                         <TableCell><Skeleton animation="wave" /></TableCell>
                         <TableCell><Skeleton animation="wave" /></TableCell>
-                        <TableCell><Skeleton animation="wave" /></TableCell>
+                        {tabValue !== 3 && <TableCell><Skeleton animation="wave" /></TableCell>}
+                        {tabValue !== 3 && <TableCell><Skeleton animation="wave" /></TableCell>}
                       </TableRow>
                     ))
+                  ) : tabValue === 3 ? (
+                    // RENDER MATCHES ROWS
+                    filteredMatches.map((m) => {
+                      const trip = trips.find(t => t.id === m.trip_id);
+                      if (!trip) return null;
+                      return (
+                        <TableRow key={m.id} hover sx={{ '&:hover': { bgcolor: alpha('#1976d2', 0.04) } }}>
+                          <TableCell>
+                            <Typography variant="body2" fontFamily="monospace">#{m.id}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <FlightTakeoff sx={{ fontSize: 16, color: '#888', mr: 0.5 }} />
+                                  <Typography variant="body2" fontWeight={500}>
+                                    {trip.from_city}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                  <FlightLand sx={{ fontSize: 16, color: '#888', mr: 0.5 }} />
+                                  <Typography variant="body2">
+                                    {trip.to_city}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{trip.airline} {trip.flight_number}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{trip.travel_date}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={m.status ? m.status.toUpperCase() : 'UNKNOWN'}
+                              color={m.status === 'confirmed' ? 'success' : m.status === 'pending' ? 'warning' : 'default'}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Tooltip title="Cancel Match">
+                              <IconButton
+                                size="small"
+                                onClick={() => initiateCancelMatch(m.id)}
+                                color="error"
+                              >
+                                <Cancel sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   ) : (
+                    // RENDER TRIPS ROWS
                     filteredTrips.map((t) => (
                       <TableRow key={t.id} hover sx={{ '&:hover': { bgcolor: alpha('#1976d2', 0.04) } }}>
                         <TableCell>
@@ -477,11 +592,11 @@ export default function TravelAdmin() {
                 </TableBody>
               </Table>
 
-              {!loading && !filteredTrips.length && (
+              {!loading && ((tabValue === 3 && !filteredMatches.length) || (tabValue !== 3 && !filteredTrips.length)) && (
                 <Box sx={{ p: 4, textAlign: 'center' }}>
                   <ErrorOutline sx={{ fontSize: 48, color: '#ccc', mb: 2 }} />
                   <Typography color="text.secondary">
-                    No trips found matching your criteria
+                    {tabValue === 3 ? "No matches found." : "No trips found matching your criteria"}
                   </Typography>
                   <Button variant="outlined" sx={{ mt: 2 }} onClick={() => { setSearch(''); setStatusFilter('all'); }}>
                     Clear filters

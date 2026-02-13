@@ -163,6 +163,68 @@ const Dashboard = () => {
     refetch: refetchCommunityMembership,
   } = useApi(() => dashboardAPI.getCommunityMembershipActivity(), []);
 
+  // Career Analytics
+  const {
+    data: careerJobsOverview,
+    loading: careerJobsLoading,
+    refetch: refetchCareerJobs,
+  } = useApi(() => dashboardAPI.getCareerJobsOverview(), []);
+
+  const {
+    data: careerApplicationsFunnel,
+    loading: careerFunnelLoading,
+    refetch: refetchCareerFunnel,
+  } = useApi(() => dashboardAPI.getCareerApplicationsFunnel(), []);
+
+  const {
+    data: careerApplicationsTrend,
+    loading: careerTrendLoading,
+    refetch: refetchCareerTrend,
+  } = useApi(() => dashboardAPI.getCareerApplicationsTrend(30), []);
+
+  const {
+    data: careerMostViewedJobs,
+    loading: careerMostViewedLoading,
+    refetch: refetchCareerMostViewed,
+  } = useApi(() => dashboardAPI.getCareerMostViewedJobs(), []);
+
+  const {
+    data: careerAdminActions,
+    loading: careerAdminActionsLoading,
+    refetch: refetchCareerAdminActions,
+  } = useApi(() => dashboardAPI.getCareerAdminActions(), []);
+
+  // Users Analytics
+  const {
+    data: usersOverview,
+    loading: usersOverviewLoading,
+    refetch: refetchUsersOverview,
+  } = useApi(() => dashboardAPI.getUsersOverview(), []);
+
+  const {
+    data: userSignupTrend,
+    loading: signupTrendLoading,
+    refetch: refetchSignupTrend,
+  } = useApi(() => dashboardAPI.getUserSignupTrend(30), []);
+
+  const {
+    data: otpFunnel,
+    loading: otpFunnelLoading,
+    refetch: refetchOtpFunnel,
+  } = useApi(() => dashboardAPI.getOtpFunnel(), []);
+
+  const {
+    data: dailyActiveUsers,
+    loading: dauLoading,
+    refetch: refetchDau,
+  } = useApi(() => dashboardAPI.getDailyActiveUsers(30), []);
+
+  const {
+    data: usersByCountry,
+    loading: usersCountryLoading,
+    refetch: refetchUsersCountry,
+  } = useApi(() => dashboardAPI.getUsersByCountry(), []);
+
   const hasError = summaryError;
 
   // --- REFRESH LOGIC ---
@@ -187,6 +249,16 @@ const Dashboard = () => {
     refetchCommunityCountry();
     refetchCommunityRatio();
     refetchCommunityMembership();
+    refetchCareerJobs();
+    refetchCareerFunnel();
+    refetchCareerTrend();
+    refetchCareerMostViewed();
+    refetchCareerAdminActions();
+    refetchUsersOverview();
+    refetchSignupTrend();
+    refetchOtpFunnel();
+    refetchDau();
+    refetchUsersCountry();
 
     setTimeout(() => setRefreshing(false), 1200);
   };
@@ -487,9 +559,35 @@ const Dashboard = () => {
             />
           )}
 
-          {activeSection === 'careers' && <CareersSection />}
+          {activeSection === 'careers' && (
+            <CareersSection
+              loading={careerJobsLoading}
+              getCareerJobsStats={() => Utils.getCareerJobsStats(careerJobsOverview)}
+              funnelLoading={careerFunnelLoading}
+              getCareerFunnelData={() => Utils.getCareerFunnelData(careerApplicationsFunnel)}
+              trendLoading={careerTrendLoading}
+              getCareerTrendData={() => Utils.getCareerTrendData(careerApplicationsTrend)}
+              mostViewedLoading={careerMostViewedLoading}
+              mostViewedJobs={careerMostViewedJobs}
+              adminActionsLoading={careerAdminActionsLoading}
+              getCareerAdminActionsStats={() => Utils.getCareerAdminActionsStats(careerAdminActions)}
+            />
+          )}
 
-          {activeSection === 'users' && <UsersSection />}
+          {activeSection === 'users' && (
+            <UsersSection
+              loading={usersOverviewLoading}
+              getUsersOverviewStats={() => Utils.getUsersOverviewStats(usersOverview)}
+              signupTrendLoading={signupTrendLoading}
+              getUserSignupTrendData={() => Utils.getUserSignupTrendData(userSignupTrend)}
+              otpFunnelLoading={otpFunnelLoading}
+              getOtpFunnelData={() => Utils.getOtpFunnelData(otpFunnel)}
+              dauLoading={dauLoading}
+              getDailyActiveUsersData={() => Utils.getDailyActiveUsersData(dailyActiveUsers)}
+              countryLoading={usersCountryLoading}
+              getUsersByCountryData={() => Utils.getUsersByCountryData(usersByCountry)}
+            />
+          )}
 
           {/* QUICK ACTIONS */}
           <div className="bg-white rounded-xl shadow-sm p-6">

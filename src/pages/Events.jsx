@@ -35,6 +35,75 @@ function cn(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
+// Currency mapping based on country
+const getCurrencySymbol = (country) => {
+  if (!country) return '$'; // Default to USD if no country is specified
+  
+  const countryLower = country.toLowerCase();
+  
+  // Map countries to their currency symbols
+  const currencyMap = {
+    'united states': '$',
+    'usa': '$',
+    'canada': 'C$',
+    'united kingdom': '£',
+    'uk': '£',
+    'europe': '€',
+    'germany': '€',
+    'france': '€',
+    'italy': '€',
+    'spain': '€',
+    'netherlands': '€',
+    'belgium': '€',
+    'austria': '€',
+    'portugal': '€',
+    'ireland': '€',
+    'finland': '€',
+    'greece': '€',
+    'japan': '¥',
+    'china': '¥',
+    'india': '₹',
+    'australia': 'A$',
+    'new zealand': 'NZ$',
+    'mexico': '$',
+    'brazil': 'R$',
+    'russia': '₽',
+    'south korea': '₩',
+    'switzerland': 'CHF',
+    'sweden': 'kr',
+    'norway': 'kr',
+    'denmark': 'kr',
+    'poland': 'zł',
+    'turkey': '₺',
+    'south africa': 'R',
+    'singapore': 'S$',
+    'hong kong': 'HK$',
+    'israel': '₪',
+    'uae': 'د.إ',
+    'saudi arabia': '﷼',
+    'thailand': '฿',
+    'malaysia': 'RM',
+    'philippines': '₱',
+    'indonesia': 'Rp',
+    'argentina': '$',
+    'chile': '$',
+    'colombia': '$',
+    'peru': 'S/',
+    'egypt': 'E£',
+    'nigeria': '₦',
+    'kenya': 'KSh',
+    'pakistan': '₨',
+    'bangladesh': '৳',
+    'sri lanka': 'Rs',
+    'vietnam': '₫',
+    'czech republic': 'Kč',
+    'hungary': 'Ft',
+    'romania': 'lei',
+  };
+  
+  return currencyMap[countryLower] || '$'; // Default to USD if country not found
+};
+
 // --- COMPONENTS ---
 
 const Button = ({
@@ -374,6 +443,7 @@ const Events = () => {
     const hasError = imageError[event.id];
     const isOnline = event.event_mode === 'online';
     const isHybrid = event.event_mode === 'hybrid';
+    const currencySymbol = getCurrencySymbol(event.country);
 
     return (
       <div className="group flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-100 transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
@@ -398,7 +468,7 @@ const Events = () => {
         <div className="flex flex-1 flex-col p-6">
           <div className="mb-3 flex justify-between items-start">
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider">{event.type || 'Event'}</p>
-            <span className="text-lg font-bold text-slate-900">${event.price || 0}</span>
+            <span className="text-lg font-bold text-slate-900">{currencySymbol}{event.price || 0}</span>
           </div>
 
           <h3 className="mb-2 truncate text-xl font-bold text-slate-900 leading-tight">{event.title}</h3>
@@ -460,6 +530,7 @@ const Events = () => {
     const hasError = imageError[event.id];
     const isOnline = event.event_mode === 'online';
     const isHybrid = event.event_mode === 'hybrid';
+    const currencySymbol = getCurrencySymbol(event.country);
 
     return (
       <li className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] ring-1 ring-slate-100 transition-all hover:shadow-md sm:flex-row">
@@ -496,7 +567,7 @@ const Events = () => {
                 </span>
                 <span className="flex items-center font-semibold text-slate-900">
                   <CurrencyDollarIcon className="mr-1.5 h-4 w-4 text-slate-400" />
-                  ${event.price || 0}
+                  {currencySymbol}{event.price || 0}
                 </span>
                 <span className="flex items-center">
                   <UserGroupIcon className="mr-1.5 h-4 w-4 text-slate-400" />
@@ -852,7 +923,7 @@ const Events = () => {
                     )}
 
                     <div className="flex items-center justify-between">
-                      <span className="text-3xl font-bold text-slate-900">${viewEvent.price}</span>
+                      <span className="text-3xl font-bold text-slate-900">{getCurrencySymbol(viewEvent.country)}{viewEvent.price}</span>
                       <div className="text-right">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Attendance</p>
                         <p className="text-sm font-bold text-indigo-600">{viewEvent.attendees_count || 0} People</p>

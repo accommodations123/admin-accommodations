@@ -55,19 +55,35 @@ const Community = () => {
   const fetchCommunities = async () => {
     try {
       setLoading(true);
-      const res = await fetch(
+
+      const endpoints = [
         `${BASE_URL}/community/admin/communities/pending`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        `${BASE_URL}/community/admin/communities/approved`,
+        `${BASE_URL}/community/admin/communities/suspended`,
+        `${BASE_URL}/community/admin/communities/rejected`
+      ];
+
+      const responses = await Promise.all(
+        endpoints.map(url =>
+          fetch(url, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(res => res.json().catch(err => ({ communities: [] })))
+        )
       );
 
-      const json = await res.json();
-      setCommunities(json.communities || []);
+      // Aggregate all communities from the responses
+      const allCommunities = responses.flatMap(json => json.communities || []);
+
+      // Remove duplicates just in case (by id)
+      const uniqueCommunities = Array.from(
+        new Map(allCommunities.map(c => [c.id, c])).values()
+      );
+
+      setCommunities(uniqueCommunities);
     } catch (err) {
       console.error("Fetch communities error:", err);
+      // Ensure we don't leave it in loading state if something catastrophic fails
+      // though Promise.all above catches individual fetch json errors
     } finally {
       setLoading(false);
     }
@@ -271,7 +287,7 @@ const Community = () => {
           </p>
         </div>
 
-        <button 
+        <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center gap-2 bg-gradient-to-r from-[#cb2926] to-[#a71f1c] px-6 py-3 rounded-xl hover:shadow-lg transition-all"
         >
@@ -346,41 +362,37 @@ const Community = () => {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setStatusFilter("all")}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              statusFilter === "all" 
-                ? "bg-[#cb2926] text-white" 
-                : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors ${statusFilter === "all"
+              ? "bg-[#cb2926] text-white"
+              : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
+              }`}
           >
             All ({totalCommunities})
           </button>
           <button
             onClick={() => setStatusFilter("active")}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              statusFilter === "active" 
-                ? "bg-green-600 text-white" 
-                : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors ${statusFilter === "active"
+              ? "bg-green-600 text-white"
+              : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
+              }`}
           >
             Active ({activeCommunities})
           </button>
           <button
             onClick={() => setStatusFilter("pending")}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              statusFilter === "pending" 
-                ? "bg-yellow-600 text-white" 
-                : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors ${statusFilter === "pending"
+              ? "bg-yellow-600 text-white"
+              : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
+              }`}
           >
             Pending ({pendingCommunities})
           </button>
           <button
             onClick={() => setStatusFilter("suspended")}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              statusFilter === "suspended" 
-                ? "bg-red-600 text-white" 
-                : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors ${statusFilter === "suspended"
+              ? "bg-red-600 text-white"
+              : "bg-slate-800/50 text-slate-300 hover:bg-slate-700/50"
+              }`}
           >
             Suspended ({suspendedCommunities})
           </button>
@@ -461,7 +473,7 @@ const Community = () => {
                         <Eye className="w-3 h-3" />
                         View
                       </button>
-                      
+
                       {c.status === "pending" && (
                         <>
                           <button
@@ -520,8 +532,8 @@ const Community = () => {
             </div>
             <h3 className="text-lg font-medium text-white mb-1">No communities found</h3>
             <p className="text-slate-400">
-              {searchTerm || statusFilter !== "all" 
-                ? "Try adjusting your search or filter criteria" 
+              {searchTerm || statusFilter !== "all"
+                ? "Try adjusting your search or filter criteria"
                 : "There are no communities to display"}
             </p>
           </div>
@@ -553,9 +565,9 @@ const Community = () => {
                   <div className="relative">
                     <div className="h-32 bg-slate-700 rounded-lg overflow-hidden">
                       {selectedCommunity.cover_image ? (
-                        <img 
-                          src={selectedCommunity.cover_image} 
-                          alt="Cover" 
+                        <img
+                          src={selectedCommunity.cover_image}
+                          alt="Cover"
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -567,9 +579,9 @@ const Community = () => {
                     <div className="absolute -bottom-10 left-6">
                       <div className="w-20 h-20 bg-slate-700 rounded-lg overflow-hidden border-4 border-[#001f3d]">
                         {selectedCommunity.avatar_image ? (
-                          <img 
-                            src={selectedCommunity.avatar_image} 
-                            alt="Avatar" 
+                          <img
+                            src={selectedCommunity.avatar_image}
+                            alt="Avatar"
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -584,7 +596,7 @@ const Community = () => {
                   <div className="pt-12">
                     <h3 className="text-2xl font-bold mb-2">{selectedCommunity.name}</h3>
                     <p className="text-slate-400 mb-4">{selectedCommunity.description}</p>
-                    
+
                     <div className="flex flex-wrap gap-2 mb-6">
                       {selectedCommunity.topics?.map((topic, index) => (
                         <span
@@ -600,20 +612,20 @@ const Community = () => {
                       {/* BASIC INFO */}
                       <div className="space-y-4">
                         <h4 className="text-lg font-semibold text-white">Basic Information</h4>
-                        
+
                         <div className="space-y-3">
                           <div className="flex items-center gap-3">
                             <Hash className="w-4 h-4 text-slate-500" />
                             <span className="text-slate-400 text-sm w-24">Slug:</span>
                             <span className="text-white text-sm">{selectedCommunity.slug}</span>
                           </div>
-                          
+
                           <div className="flex items-center gap-3">
                             <Globe className="w-4 h-4 text-slate-500" />
                             <span className="text-slate-400 text-sm w-24">Visibility:</span>
                             <span className="text-white text-sm capitalize">{selectedCommunity.visibility}</span>
                           </div>
-                          
+
                           <div className="flex items-center gap-3">
                             {selectedCommunity.join_policy === "open" ? (
                               <Unlock className="w-4 h-4 text-slate-500" />
@@ -623,7 +635,7 @@ const Community = () => {
                             <span className="text-slate-400 text-sm w-24">Join Policy:</span>
                             <span className="text-white text-sm capitalize">{selectedCommunity.join_policy}</span>
                           </div>
-                          
+
                           <div className="flex items-center gap-3">
                             <Clock className="w-4 h-4 text-slate-500" />
                             <span className="text-slate-400 text-sm w-24">Created:</span>
@@ -635,20 +647,20 @@ const Community = () => {
                       {/* LOCATION INFO */}
                       <div className="space-y-4">
                         <h4 className="text-lg font-semibold text-white">Location</h4>
-                        
+
                         <div className="space-y-3">
                           <div className="flex items-center gap-3">
                             <MapPin className="w-4 h-4 text-slate-500" />
                             <span className="text-slate-400 text-sm w-24">Country:</span>
                             <span className="text-white text-sm">{selectedCommunity.country}</span>
                           </div>
-                          
+
                           <div className="flex items-center gap-3">
                             <MapPin className="w-4 h-4 text-slate-500" />
                             <span className="text-slate-400 text-sm w-24">State:</span>
                             <span className="text-white text-sm">{selectedCommunity.state}</span>
                           </div>
-                          
+
                           <div className="flex items-center gap-3">
                             <MapPin className="w-4 h-4 text-slate-500" />
                             <span className="text-slate-400 text-sm w-24">City:</span>
@@ -665,13 +677,13 @@ const Community = () => {
                         <div className="text-2xl font-bold">{selectedCommunity.members_count}</div>
                         <div className="text-sm text-slate-400">Members</div>
                       </div>
-                      
+
                       <div className="bg-slate-800/50 rounded-lg p-4 text-center">
                         <MessageSquare className="w-8 h-8 text-purple-400 mx-auto mb-2" />
                         <div className="text-2xl font-bold">{selectedCommunity.posts_count}</div>
                         <div className="text-sm text-slate-400">Posts</div>
                       </div>
-                      
+
                       <div className="bg-slate-800/50 rounded-lg p-4 text-center">
                         <Calendar className="w-8 h-8 text-green-400 mx-auto mb-2" />
                         <div className="text-2xl font-bold">{selectedCommunity.events_count}</div>
